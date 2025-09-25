@@ -2,6 +2,8 @@ const { SlashCommandBuilder } = require('discord.js');
 const { DateTime } = require('luxon');
 const userDataManager = require('../utils/userDataManager');
 
+const MILESTONE_CHANNEL_ID = '1420968791470506125';
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('nocontact')
@@ -105,28 +107,70 @@ module.exports = {
         const daysDiff = Math.floor(currentDate.diff(startDate, 'days').days);
 
         let message;
+        let isMilestone = false;
+
         if (daysDiff < 0) {
             message = '⚠️ Your start date is in the future! Please set a valid start date with `/nocontact set`.';
         } else if (daysDiff === 0) {
             message = '🌟 You started your no-contact journey today! Stay strong!';
-        } else if (daysDiff === 1) {
-            message = '💪 It\'s been **1 day** since you started no-contact! Keep going!';
         } else {
-            message = `🔥 It's been **${daysDiff} days** since you started no-contact! You're doing amazing!`;
+            // Check for milestones
+            const milestone = this.getMilestone(daysDiff);
+            if (milestone) {
+                const announcedMilestones = userDataManager.getUserProperty(userId, 'announcedMilestones') || [];
+
+                if (announcedMilestones.includes(daysDiff)) {
+                    message = `${milestone.emoji} You've completed **${this.getMilestoneName(daysDiff)}** of no-contact! (Milestone celebrated)`;
+                } else {
+                    message = `${milestone.emoji} **MILESTONE REACHED!** You've completed **${this.getMilestoneName(daysDiff)}** of no-contact! 🎉\n\n*Your achievement will be automatically announced soon!*`;
+                }
+                isMilestone = true;
+            } else if (daysDiff === 1) {
+                message = '💪 It\'s been **1 day** since you started no-contact! Keep going!';
+            } else {
+                message = `🔥 It's been **${daysDiff} days** since you started no-contact! You're doing amazing!`;
+            }
         }
 
         await interaction.reply({
             content: message,
-            ephemeral: true
+            ephemeral: true // All replies are now private, announcements go to channel
         });
     },
 
-    async handleReset(interaction, userId) {
-        const deleted = userDataManager.deleteUserProperty(userId, 'noContactStartDate');
+    getMilestone(days) {
+        const milestones = [
+            { days: 1, emoji: '🎉', message: 'has completed **1 full day** of no-contact! First milestone reached!' },
+            { days: 7, emoji: '🌟', message: 'has completed **1 week** of no-contact! A full week strong!' },
+            { days: 30, emoji: '🏆', message: 'has completed **1 month** of no-contact! Incredible dedication!' },
+            { days: 90, emoji: '💎', message: 'has completed **3 months** of no-contact! Diamond strength!' },
+            { days: 180, emoji: '🔥', message: 'has completed **6 months** of no-contact! Half a year of growth!' },
+            { days: 365, emoji: '👑', message: 'has completed **1 FULL YEAR** of no-contact! Absolute legend!' }
+        ];
 
-        if (deleted) {
+        return milestones.find(milestone => milestone.days === days);
+    },
+
+    getMilestoneName(days) {
+        const names = {
+            1: '1 full day',
+            7: '1 week',
+            30: '1 month',
+            90: '3 months',
+            180: '6 months',
+            365: '1 full year'
+        };
+        return names[days] || `${days} days`;
+    },
+
+
+    async handleReset(interaction, userId) {
+        const startDateDeleted = userDataManager.deleteUserProperty(userId, 'noContactStartDate');
+        const milestonesDeleted = userDataManager.deleteUserProperty(userId, 'announcedMilestones');
+
+        if (startDateDeleted) {
             await interaction.reply({
-                content: '🗑️ Your no-contact record has been reset. You can start fresh with `/nocontact set`!',
+                content: '🗑️ Your no-contact record has been reset. You can start fresh with `/nocontact set`!\n\n*All milestone celebrations will be available again when you reach them.*',
                 ephemeral: true
             });
         } else {

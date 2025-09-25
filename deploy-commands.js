@@ -17,14 +17,34 @@ for (const file of commandFiles) {
     }
 }
 
-const rest = new REST().setToken(process.env.DISCORD_TOKEN);
+// Validate environment variables
+const token = process.env.DISCORD_TOKEN;
+const clientId = process.env.CLIENT_ID;
+const guildId = process.env.GUILD_ID;
+
+if (!token) {
+    console.error('Missing DISCORD_TOKEN environment variable');
+    process.exit(1);
+}
+
+if (!clientId) {
+    console.error('Missing CLIENT_ID environment variable');
+    process.exit(1);
+}
+
+if (!guildId) {
+    console.error('Missing GUILD_ID environment variable');
+    process.exit(1);
+}
+
+const rest = new REST().setToken(token);
 
 (async () => {
     try {
         console.log(`Started refreshing ${commands.length} application (/) commands.`);
 
         const data = await rest.put(
-            Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
+            Routes.applicationGuildCommands(clientId, guildId),
             { body: commands },
         );
 
