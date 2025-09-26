@@ -59,7 +59,7 @@ module.exports = {
             if (!match) {
                 return interaction.reply({
                     content: 'Invalid date format! Please use MM-DD-YYYY format.',
-                    ephemeral: true
+                    ephemeral: false
                 });
             }
 
@@ -73,7 +73,7 @@ module.exports = {
             if (!startDate.isValid) {
                 return interaction.reply({
                     content: 'Invalid date! Please check your date and try again.',
-                    ephemeral: true
+                    ephemeral: false
                 });
             }
         } else {
@@ -87,7 +87,7 @@ module.exports = {
         const formattedDate = startDate.toFormat('MMMM dd, yyyy');
         await interaction.reply({
             content: `✅ No-contact start date set to **${formattedDate}**!`,
-            ephemeral: true
+            ephemeral: false
         });
     },
 
@@ -97,7 +97,7 @@ module.exports = {
         if (!startDateString) {
             return interaction.reply({
                 content: 'You haven\'t set a no-contact start date yet! Use `/nocontact set` first.',
-                ephemeral: true
+                ephemeral: false
             });
         }
 
@@ -134,7 +134,7 @@ module.exports = {
 
         await interaction.reply({
             content: message,
-            ephemeral: true // All replies are now private, announcements go to channel
+            ephemeral: false
         });
     },
 
@@ -171,12 +171,12 @@ module.exports = {
         if (startDateDeleted) {
             await interaction.reply({
                 content: '🗑️ Your no-contact record has been reset. You can start fresh with `/nocontact set`!\n\n*All milestone celebrations will be available again when you reach them.*',
-                ephemeral: true
+                ephemeral: false
             });
         } else {
             await interaction.reply({
                 content: 'You don\'t have a no-contact record to reset.',
-                ephemeral: true
+                ephemeral: false
             });
         }
     }
