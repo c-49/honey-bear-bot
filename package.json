@@ -9,12 +9,17 @@
   },
   "dependencies": {
     "discord.js": "^14.14.1",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "luxon": "^3.7.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
   },
-  "keywords": ["discord", "bot", "nodejs"],
+  "keywords": [
+    "discord",
+    "bot",
+    "nodejs"
+  ],
   "author": "",
   "license": "MIT"
 }
