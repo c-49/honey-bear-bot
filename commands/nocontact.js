@@ -82,7 +82,7 @@ module.exports = {
         }
 
         // Store the date as ISO string
-        userDataManager.setUserProperty(userId, 'noContactStartDate', startDate.toISODate());
+        await userDataManager.setUserProperty(userId, 'noContactStartDate', startDate.toISODate());
 
         const formattedDate = startDate.toFormat('MMMM dd, yyyy');
         await interaction.reply({
@@ -92,7 +92,7 @@ module.exports = {
     },
 
     async handleCheck(interaction, userId) {
-        const startDateString = userDataManager.getUserProperty(userId, 'noContactStartDate');
+        const startDateString = await userDataManager.getUserProperty(userId, 'noContactStartDate');
 
         if (!startDateString) {
             return interaction.reply({
@@ -117,7 +117,7 @@ module.exports = {
             // Check for milestones
             const milestone = this.getMilestone(daysDiff);
             if (milestone) {
-                const announcedMilestones = userDataManager.getUserProperty(userId, 'announcedMilestones') || [];
+                const announcedMilestones = await userDataManager.getUserProperty(userId, 'announcedMilestones') || [];
 
                 if (announcedMilestones.includes(daysDiff)) {
                     message = `${milestone.emoji} You've completed **${this.getMilestoneName(daysDiff)}** of no-contact! (Milestone celebrated)`;
@@ -163,10 +163,9 @@ module.exports = {
         return names[days] || `${days} days`;
     },
 
-
     async handleReset(interaction, userId) {
-        const startDateDeleted = userDataManager.deleteUserProperty(userId, 'noContactStartDate');
-        const milestonesDeleted = userDataManager.deleteUserProperty(userId, 'announcedMilestones');
+        const startDateDeleted = await userDataManager.deleteUserProperty(userId, 'noContactStartDate');
+        const milestonesDeleted = await userDataManager.deleteUserProperty(userId, 'announcedMilestones');
 
         if (startDateDeleted) {
             await interaction.reply({

@@ -30,7 +30,7 @@ class MilestoneChecker {
 
     async checkAllUsers() {
         try {
-            const allUserData = userDataManager.data;
+            const allUserData = await userDataManager.getAllUsers();
             const currentDate = DateTime.now().setZone('America/New_York');
 
             for (const [userId, userData] of Object.entries(allUserData)) {
@@ -65,7 +65,7 @@ class MilestoneChecker {
 
             // Track that this milestone was announced
             announcedMilestones.push(daysDiff);
-            userDataManager.setUserProperty(userId, 'announcedMilestones', announcedMilestones);
+            await userDataManager.setUserProperty(userId, 'announcedMilestones', announcedMilestones);
 
             console.log(`Milestone announced for ${user.tag}: ${daysDiff} days`);
         } catch (error) {
