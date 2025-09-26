@@ -105,7 +105,9 @@ module.exports = {
         const daysDiff = Math.floor(currentDate.diff(startDate, 'days').days);
 
         let message;
-        if (daysDiff === 0) {
+        if (daysDiff < 0) {
+            message = '⚠️ Your start date is in the future! Please set a valid start date with `/nocontact set`.';
+        } else if (daysDiff === 0) {
             message = '🌟 You started your no-contact journey today! Stay strong!';
         } else if (daysDiff === 1) {
             message = '💪 It\'s been **1 day** since you started no-contact! Keep going!';
