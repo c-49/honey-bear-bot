@@ -62,6 +62,19 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
+// Create a simple HTTP server for Render.com deployment
+const http = require('http');
+const port = process.env.PORT || 3000;
+
+const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Discord bot is running!');
+});
+
+server.listen(port, () => {
+    console.log(`HTTP server listening on port ${port}`);
+});
+
 const token = process.env.DISCORD_TOKEN;
 if (!token) {
     console.error('No Discord token found. Please set DISCORD_TOKEN in your .env file');
