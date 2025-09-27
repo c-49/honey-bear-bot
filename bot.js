@@ -93,6 +93,34 @@ client.on('guildMemberAdd', async member => {
     }
 });
 
+client.on('guildMemberUpdate', async (oldMember, newMember) => {
+    const UNDERAGE_ROLE_ID = '1304923945757184152';
+
+    try {
+        // Check if the underage role was just added
+        const hadRole = oldMember.roles.cache.has(UNDERAGE_ROLE_ID);
+        const hasRole = newMember.roles.cache.has(UNDERAGE_ROLE_ID);
+
+        if (!hadRole && hasRole) {
+            // Role was just assigned, kick the user
+            try {
+                await newMember.send({
+                    content: `Hello ${newMember.user.username},\n\nWe noticed you selected that you're under 18 during server onboarding. This server is intended for adults (18+) only, so we've had to remove you from the server.\n\nWe appreciate your understanding and encourage you to find age-appropriate communities that better suit your needs.\n\nTake care! 💙`
+                });
+                console.log(`Sent DM to underage user: ${newMember.user.tag}`);
+            } catch (dmError) {
+                console.log(`Could not send DM to ${newMember.user.tag}:`, dmError.message);
+            }
+
+            // Kick the member
+            await newMember.kick('User is under 18 - adult server policy');
+            console.log(`Kicked underage user: ${newMember.user.tag}`);
+        }
+    } catch (error) {
+        console.error('Error handling member role update:', error);
+    }
+});
+
 // Create a simple HTTP server for Render.com deployment
 const http = require('http');
 const port = process.env.PORT || 3000;
