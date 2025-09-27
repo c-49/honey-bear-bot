@@ -7,7 +7,8 @@ require('dotenv').config();
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.GuildMembers
     ]
 });
 
@@ -64,6 +65,31 @@ client.on('interactionCreate', async interaction => {
         } else {
             await interaction.reply(reply);
         }
+    }
+});
+
+client.on('guildMemberAdd', async member => {
+    const UNDERAGE_ROLE_ID = '1304923945757184152';
+
+    try {
+        // Check if the member has the underage role
+        if (member.roles.cache.has(UNDERAGE_ROLE_ID)) {
+            // Send DM before kicking
+            try {
+                await member.send({
+                    content: `Hello ${member.user.username},\n\nWe noticed you selected that you're under 18 during server onboarding. This server is intended for adults (18+) only, so we've had to remove you from the server.\n\nWe appreciate your understanding and encourage you to find age-appropriate communities that better suit your needs.\n\nTake care! 💙`
+                });
+                console.log(`Sent DM to underage user: ${member.user.tag}`);
+            } catch (dmError) {
+                console.log(`Could not send DM to ${member.user.tag}:`, dmError.message);
+            }
+
+            // Kick the member
+            await member.kick('User is under 18 - adult server policy');
+            console.log(`Kicked underage user: ${member.user.tag}`);
+        }
+    } catch (error) {
+        console.error('Error handling new member with underage role:', error);
     }
 });
 
