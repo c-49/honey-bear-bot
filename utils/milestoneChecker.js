@@ -20,12 +20,12 @@ class MilestoneChecker {
         // Check immediately on startup
         this.checkAllUsers();
 
-        // Then check every 24 hours (86400000 ms)
+        // Then check every 3 hours (10800000 ms)
         setInterval(() => {
             this.checkAllUsers();
-        }, 86400000);
+        }, 10800000);
 
-        console.log('Milestone checker started - checking every 24 hours');
+        console.log('Milestone checker started - checking every 3 hours');
     }
 
     async checkAllUsers() {
