@@ -3,12 +3,12 @@ const { getRandomGif } = require('../utils/gifUtils');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('bonk')
-        .setDescription('Bonk a user with a random GIF!')
+        .setName('pet')
+        .setDescription('Pet a user with a random GIF!')
         .addUserOption(option =>
             option
                 .setName('user')
-                .setDescription('The user to bonk')
+                .setDescription('The user to pet')
                 .setRequired(true)
         ),
 
@@ -17,16 +17,16 @@ module.exports = {
 
         if (targetUser.id === interaction.user.id) {
             return interaction.reply({
-                content: 'You cannot bonk yourself! 🤔',
+                content: 'You cannot pet yourself! 🤔',
                 ephemeral: true
             });
         }
 
-        const gifPath = getRandomGif('./gifs/bonk');
+        const gifPath = getRandomGif('./gifs/pet');
 
         if (!gifPath) {
             return interaction.reply({
-                content: 'No bonk GIFs found! Please add some GIFs to the gifs folder.',
+                content: 'No pet GIFs found! Please add some GIFs to the gifs/pet folder.',
                 ephemeral: true
             });
         }
@@ -35,14 +35,14 @@ module.exports = {
             const attachment = new AttachmentBuilder(gifPath);
 
             await interaction.reply({
-                content: `${interaction.user} bonked ${targetUser}! 💥`,
+                content: `${interaction.user} petted ${targetUser}! 🐾`,
                 files: [attachment]
             });
         } catch (error) {
-            console.error('Error sending bonk GIF:', error);
+            console.error('Error sending pet GIF:', error);
 
             await interaction.reply({
-                content: `${interaction.user} bonked ${targetUser}! 💥 (GIF failed to load)`,
+                content: `${interaction.user} petted ${targetUser}! 🐾 (GIF failed to load)`,
             });
         }
     },
