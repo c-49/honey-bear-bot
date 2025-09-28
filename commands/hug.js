@@ -15,13 +15,6 @@ module.exports = {
     async execute(interaction) {
         const targetUser = interaction.options.getUser('user');
 
-        if (targetUser.id === interaction.user.id) {
-            return interaction.reply({
-                content: 'You cannot hug yourself! 🤔',
-                ephemeral: true
-            });
-        }
-
         const gifPath = getRandomGif('./gifs/hug');
 
         if (!gifPath) {
@@ -33,16 +26,24 @@ module.exports = {
 
         try {
             const attachment = new AttachmentBuilder(gifPath);
+            const isSelfTarget = targetUser.id === interaction.user.id;
+            const content = isSelfTarget
+                ? `${interaction.user} hugged themselves! 🤗`
+                : `${interaction.user} hugged ${targetUser}! 🤗`;
 
             await interaction.reply({
-                content: `${interaction.user} hugged ${targetUser}! 🤗`,
+                content: content,
                 files: [attachment]
             });
         } catch (error) {
             console.error('Error sending hug GIF:', error);
+            const isSelfTarget = targetUser.id === interaction.user.id;
+            const content = isSelfTarget
+                ? `${interaction.user} hugged themselves! 🤗 (GIF failed to load)`
+                : `${interaction.user} hugged ${targetUser}! 🤗 (GIF failed to load)`;
 
             await interaction.reply({
-                content: `${interaction.user} hugged ${targetUser}! 🤗 (GIF failed to load)`,
+                content: content,
             });
         }
     },

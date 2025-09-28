@@ -15,13 +15,6 @@ module.exports = {
     async execute(interaction) {
         const targetUser = interaction.options.getUser('user');
 
-        if (targetUser.id === interaction.user.id) {
-            return interaction.reply({
-                content: 'You cannot pet yourself! 🤔',
-                ephemeral: true
-            });
-        }
-
         const gifPath = getRandomGif('./gifs/pet');
 
         if (!gifPath) {
@@ -33,16 +26,24 @@ module.exports = {
 
         try {
             const attachment = new AttachmentBuilder(gifPath);
+            const isSelfTarget = targetUser.id === interaction.user.id;
+            const content = isSelfTarget
+                ? `${interaction.user} petted themselves! 🐾`
+                : `${interaction.user} petted ${targetUser}! 🐾`;
 
             await interaction.reply({
-                content: `${interaction.user} petted ${targetUser}! 🐾`,
+                content: content,
                 files: [attachment]
             });
         } catch (error) {
             console.error('Error sending pet GIF:', error);
+            const isSelfTarget = targetUser.id === interaction.user.id;
+            const content = isSelfTarget
+                ? `${interaction.user} petted themselves! 🐾 (GIF failed to load)`
+                : `${interaction.user} petted ${targetUser}! 🐾 (GIF failed to load)`;
 
             await interaction.reply({
-                content: `${interaction.user} petted ${targetUser}! 🐾 (GIF failed to load)`,
+                content: content,
             });
         }
     },

@@ -15,13 +15,6 @@ module.exports = {
     async execute(interaction) {
         const targetUser = interaction.options.getUser('user');
 
-        if (targetUser.id === interaction.user.id) {
-            return interaction.reply({
-                content: 'You cannot bonk yourself! 🤔',
-                ephemeral: true
-            });
-        }
-
         const gifPath = getRandomGif('./gifs/bonk');
 
         if (!gifPath) {
@@ -33,16 +26,24 @@ module.exports = {
 
         try {
             const attachment = new AttachmentBuilder(gifPath);
+            const isSelfTarget = targetUser.id === interaction.user.id;
+            const content = isSelfTarget
+                ? `${interaction.user} bonked themselves! 💥`
+                : `${interaction.user} bonked ${targetUser}! 💥`;
 
             await interaction.reply({
-                content: `${interaction.user} bonked ${targetUser}! 💥`,
+                content: content,
                 files: [attachment]
             });
         } catch (error) {
             console.error('Error sending bonk GIF:', error);
+            const isSelfTarget = targetUser.id === interaction.user.id;
+            const content = isSelfTarget
+                ? `${interaction.user} bonked themselves! 💥 (GIF failed to load)`
+                : `${interaction.user} bonked ${targetUser}! 💥 (GIF failed to load)`;
 
             await interaction.reply({
-                content: `${interaction.user} bonked ${targetUser}! 💥 (GIF failed to load)`,
+                content: content,
             });
         }
     },
