@@ -46,6 +46,8 @@ module.exports = {
         // Defer reply to prevent duplicate executions
         await interaction.deferReply({ ephemeral: true });
 
+        console.log(`Mood command executed by ${interaction.user.tag} - Interaction ID: ${interaction.id}`);
+
         const feeling = interaction.options.getString('feeling');
         const note = interaction.options.getString('note');
         const emoji = MOOD_EMOJIS[feeling];
@@ -86,11 +88,15 @@ module.exports = {
             const row = new ActionRowBuilder()
                 .addComponents(replyButton);
 
+            console.log(`Sending mood message to channel for ${interaction.user.tag}`);
+
             // Post to the mood channel with button
             const moodMessage = await channel.send({
                 content: message,
                 components: [row]
             });
+
+            console.log(`Mood message sent successfully for ${interaction.user.tag}`);
 
             // Confirm to the user
             await interaction.editReply({
