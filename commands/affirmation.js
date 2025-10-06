@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const userDataManager = require('../utils/userDataManager');
 
-const MOOD_CHANNEL_ID = '1424555152945451058'; // Using same channel as mood tracker
+const AFFIRMATION_CHANNEL_ID = '1424588560622682312';
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -24,8 +24,8 @@ module.exports = {
         const affirmation = interaction.options.getString('affirmation');
 
         try {
-            // Get the mood channel (affirmations go to same channel)
-            const channel = await interaction.client.channels.fetch(MOOD_CHANNEL_ID);
+            // Get the affirmation channel
+            const channel = await interaction.client.channels.fetch(AFFIRMATION_CHANNEL_ID);
 
             if (!channel) {
                 return interaction.editReply({
