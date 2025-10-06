@@ -57,9 +57,13 @@ client.on('interactionCreate', async interaction => {
                     });
                 }
 
+                // Get the new user mention from the original message
+                const originalMessage = interaction.message;
+                const newUserMention = originalMessage.content.match(/<@!?\d+>/)?.[0] || '';
+
                 const attachment = new AttachmentBuilder(gifPath);
                 await interaction.reply({
-                    content: `${interaction.user} welcomes you! 🎉`,
+                    content: `${interaction.user} welcomes you${newUserMention ? ` ${newUserMention}` : ''}! 🎉`,
                     files: [attachment]
                 });
 
@@ -104,9 +108,14 @@ client.on('interactionCreate', async interaction => {
 
 client.on('guildMemberAdd', async member => {
     const UNDERAGE_ROLE_ID = '1304923945757184152';
-    const NO_WELCOME_ROLE_ID = '1424557858153824327';
 
     try {
+        // Wait briefly for onboarding to assign roles
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // Refetch member to get updated roles
+        await member.fetch();
+
         // Check if the member has the underage role
         if (member.roles.cache.has(UNDERAGE_ROLE_ID)) {
             // Send DM before kicking
@@ -124,44 +133,22 @@ client.on('guildMemberAdd', async member => {
             console.log(`Kicked underage user: ${member.user.tag}`);
             return; // Exit early, don't send welcome message
         }
-
-        // Check if member has the "no welcome" role
-        if (member.roles.cache.has(NO_WELCOME_ROLE_ID)) {
-            console.log(`Skipping welcome message for ${member.user.tag} (has no-welcome role)`);
-            return;
-        }
-
-        // Send welcome message with button
-        const welcomeButton = new ButtonBuilder()
-            .setCustomId('welcome_gif')
-            .setLabel('Send Welcome GIF! 🎉')
-            .setStyle(ButtonStyle.Primary);
-
-        const row = new ActionRowBuilder()
-            .addComponents(welcomeButton);
-
-        const welcomeChannel = member.guild.systemChannel;
-        if (welcomeChannel) {
-            await welcomeChannel.send({
-                content: `Welcome ${member}! Tell us about your story on <#1294734902998208564>. Make sure to check out the <#1294074223224033383>, and get some roles: <#1412922277942792233> & <#1412923346609377430>\n<@&1332093729691144263>`,
-                components: [row]
-            });
-            console.log(`Sent welcome message for ${member.user.tag}`);
-        }
     } catch (error) {
-        console.error('Error handling new member:', error);
+        console.error('Error handling new member (underage check):', error);
     }
 });
 
 client.on('guildMemberUpdate', async (oldMember, newMember) => {
     const UNDERAGE_ROLE_ID = '1304923945757184152';
+    const NO_WELCOME_ROLE_ID = '1424557858153824327';
+    const WELCOME_ROLE_ID = '1294101382701256774';
 
     try {
         // Check if the underage role was just added
-        const hadRole = oldMember.roles.cache.has(UNDERAGE_ROLE_ID);
-        const hasRole = newMember.roles.cache.has(UNDERAGE_ROLE_ID);
+        const hadUnderageRole = oldMember.roles.cache.has(UNDERAGE_ROLE_ID);
+        const hasUnderageRole = newMember.roles.cache.has(UNDERAGE_ROLE_ID);
 
-        if (!hadRole && hasRole) {
+        if (!hadUnderageRole && hasUnderageRole) {
             // Role was just assigned, kick the user
             try {
                 await newMember.send({
@@ -175,6 +162,45 @@ client.on('guildMemberUpdate', async (oldMember, newMember) => {
             // Kick the member
             await newMember.kick('User is under 18 - adult server policy');
             console.log(`Kicked underage user: ${newMember.user.tag}`);
+            return;
+        }
+
+        // Check if user completed onboarding (role count increased and they don't have underage role)
+        const oldRoleCount = oldMember.roles.cache.size;
+        const newRoleCount = newMember.roles.cache.size;
+
+        if (newRoleCount > oldRoleCount && !hasUnderageRole) {
+            // User likely completed onboarding, check if they should get welcome
+            if (newMember.roles.cache.has(NO_WELCOME_ROLE_ID)) {
+                console.log(`Skipping welcome for ${newMember.user.tag} (has no-welcome role)`);
+                return;
+            }
+
+            // Assign welcome role
+            try {
+                await newMember.roles.add(WELCOME_ROLE_ID);
+                console.log(`Assigned welcome role to ${newMember.user.tag}`);
+            } catch (roleError) {
+                console.error(`Failed to assign welcome role to ${newMember.user.tag}:`, roleError);
+            }
+
+            // Send welcome message with button
+            const welcomeButton = new ButtonBuilder()
+                .setCustomId('welcome_gif')
+                .setLabel('Send Welcome GIF! 🎉')
+                .setStyle(ButtonStyle.Primary);
+
+            const row = new ActionRowBuilder()
+                .addComponents(welcomeButton);
+
+            const welcomeChannel = newMember.guild.systemChannel;
+            if (welcomeChannel) {
+                await welcomeChannel.send({
+                    content: `Welcome ${newMember}! Tell us about your story on <#1294734902998208564>. Make sure to check out the <#1294074223224033383>, and get some roles: <#1412922277942792233> & <#1412923346609377430>\n<@&1332093729691144263>`,
+                    components: [row]
+                });
+                console.log(`Sent welcome message for ${newMember.user.tag}`);
+            }
         }
     } catch (error) {
         console.error('Error handling member role update:', error);
