@@ -135,6 +135,7 @@ client.on('guildMemberUpdate', async (oldMember, newMember) => {
     const UNDERAGE_ROLE_ID = '1304923945757184152';
     const NO_WELCOME_ROLE_ID = '1424557858153824327';
     const WELCOME_ROLE_ID = '1294101382701256774';
+    const REQUIRED_ROLE_ID = '1424564701924298752';
 
     try {
         // Check if the underage role was just added
@@ -158,13 +159,16 @@ client.on('guildMemberUpdate', async (oldMember, newMember) => {
             return;
         }
 
-        // Check if the welcome role was just added (user completed onboarding)
-        const hadWelcomeRole = oldMember.roles.cache.has(WELCOME_ROLE_ID);
+        // Check if a role was just added and user now has BOTH required roles
+        const oldRoleCount = oldMember.roles.cache.size;
+        const newRoleCount = newMember.roles.cache.size;
         const hasWelcomeRole = newMember.roles.cache.has(WELCOME_ROLE_ID);
+        const hasRequiredRole = newMember.roles.cache.has(REQUIRED_ROLE_ID);
+        const hadBothRoles = oldMember.roles.cache.has(WELCOME_ROLE_ID) && oldMember.roles.cache.has(REQUIRED_ROLE_ID);
 
-        // Only send welcome if the role was just assigned (not already had it)
-        if (!hadWelcomeRole && hasWelcomeRole && !hasUnderageRole) {
-            // User just got the welcome role from onboarding
+        // Only send welcome if: role was just added, user has BOTH roles, and they didn't have both before
+        if (newRoleCount > oldRoleCount && hasWelcomeRole && hasRequiredRole && !hadBothRoles && !hasUnderageRole) {
+            // Check if they should skip welcome
             if (newMember.roles.cache.has(NO_WELCOME_ROLE_ID)) {
                 console.log(`Skipping welcome for ${newMember.user.tag} (has no-welcome role)`);
                 return;
