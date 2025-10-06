@@ -120,6 +120,17 @@ client.on('guildMemberAdd', async member => {
     console.log(`New member joined: ${member.user.tag}`);
 });
 
+client.on('guildMemberRemove', async member => {
+    const WELCOME_ROLE_ID = '1294101382701256774';
+
+    // Remove welcome role if they had it (for if they rejoin)
+    if (member.roles.cache.has(WELCOME_ROLE_ID)) {
+        console.log(`Member ${member.user.tag} left (had welcome role)`);
+    } else {
+        console.log(`Member ${member.user.tag} left`);
+    }
+});
+
 client.on('guildMemberUpdate', async (oldMember, newMember) => {
     const UNDERAGE_ROLE_ID = '1304923945757184152';
     const NO_WELCOME_ROLE_ID = '1424557858153824327';
@@ -147,28 +158,16 @@ client.on('guildMemberUpdate', async (oldMember, newMember) => {
             return;
         }
 
-        // Check if user completed onboarding (role count increased and they don't have underage role)
-        const oldRoleCount = oldMember.roles.cache.size;
-        const newRoleCount = newMember.roles.cache.size;
+        // Check if the welcome role was just added (user completed onboarding)
+        const hadWelcomeRole = oldMember.roles.cache.has(WELCOME_ROLE_ID);
+        const hasWelcomeRole = newMember.roles.cache.has(WELCOME_ROLE_ID);
 
-        // Skip if user already has the welcome role (already been welcomed)
-        if (oldMember.roles.cache.has(WELCOME_ROLE_ID)) {
-            return;
-        }
-
-        if (newRoleCount > oldRoleCount && !hasUnderageRole) {
-            // User likely completed onboarding, check if they should get welcome
+        // Only send welcome if the role was just assigned (not already had it)
+        if (!hadWelcomeRole && hasWelcomeRole && !hasUnderageRole) {
+            // User just got the welcome role from onboarding
             if (newMember.roles.cache.has(NO_WELCOME_ROLE_ID)) {
                 console.log(`Skipping welcome for ${newMember.user.tag} (has no-welcome role)`);
                 return;
-            }
-
-            // Assign welcome role
-            try {
-                await newMember.roles.add(WELCOME_ROLE_ID);
-                console.log(`Assigned welcome role to ${newMember.user.tag}`);
-            } catch (roleError) {
-                console.error(`Failed to assign welcome role to ${newMember.user.tag}:`, roleError);
             }
 
             // Send welcome message with button
