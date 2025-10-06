@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, Collection } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const MilestoneChecker = require('./utils/milestoneChecker');
@@ -41,6 +41,40 @@ client.once('ready', () => {
 });
 
 client.on('interactionCreate', async interaction => {
+    // Handle button interactions
+    if (interaction.isButton()) {
+        if (interaction.customId === 'welcome_gif') {
+            const { getRandomGif } = require('./utils/gifUtils');
+            const { AttachmentBuilder } = require('discord.js');
+
+            try {
+                const gifPath = getRandomGif('./gifs/welcome');
+
+                if (!gifPath) {
+                    return interaction.reply({
+                        content: 'No welcome GIFs found!',
+                        ephemeral: true
+                    });
+                }
+
+                const attachment = new AttachmentBuilder(gifPath);
+                await interaction.reply({
+                    content: `${interaction.user} welcomes you! 🎉`,
+                    files: [attachment]
+                });
+
+                console.log(`${interaction.user.tag} sent a welcome GIF`);
+            } catch (error) {
+                console.error('Error sending welcome GIF:', error);
+                await interaction.reply({
+                    content: 'There was an error sending the welcome GIF!',
+                    ephemeral: true
+                });
+            }
+        }
+        return;
+    }
+
     if (!interaction.isChatInputCommand()) return;
 
     const command = client.commands.get(interaction.commandName);
@@ -70,6 +104,7 @@ client.on('interactionCreate', async interaction => {
 
 client.on('guildMemberAdd', async member => {
     const UNDERAGE_ROLE_ID = '1304923945757184152';
+    const NO_WELCOME_ROLE_ID = '1424557858153824327';
 
     try {
         // Check if the member has the underage role
@@ -87,9 +122,34 @@ client.on('guildMemberAdd', async member => {
             // Kick the member
             await member.kick('User is under 18 - adult server policy');
             console.log(`Kicked underage user: ${member.user.tag}`);
+            return; // Exit early, don't send welcome message
+        }
+
+        // Check if member has the "no welcome" role
+        if (member.roles.cache.has(NO_WELCOME_ROLE_ID)) {
+            console.log(`Skipping welcome message for ${member.user.tag} (has no-welcome role)`);
+            return;
+        }
+
+        // Send welcome message with button
+        const welcomeButton = new ButtonBuilder()
+            .setCustomId('welcome_gif')
+            .setLabel('Send Welcome GIF! 🎉')
+            .setStyle(ButtonStyle.Primary);
+
+        const row = new ActionRowBuilder()
+            .addComponents(welcomeButton);
+
+        const welcomeChannel = member.guild.systemChannel;
+        if (welcomeChannel) {
+            await welcomeChannel.send({
+                content: `Welcome ${member}! Tell us about your story on <#1294734902998208564>. Make sure to check out the <#1294074223224033383>, and get some roles: <#1412922277942792233> & <#1412923346609377430>\n<@&1332093729691144263>`,
+                components: [row]
+            });
+            console.log(`Sent welcome message for ${member.user.tag}`);
         }
     } catch (error) {
-        console.error('Error handling new member with underage role:', error);
+        console.error('Error handling new member:', error);
     }
 });
 
