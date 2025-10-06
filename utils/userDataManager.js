@@ -18,6 +18,24 @@ class UserDataManager {
                     data JSONB NOT NULL DEFAULT '{}'
                 )
             `);
+
+            // Create the mood_entries table if it doesn't exist
+            await this.pool.query(`
+                CREATE TABLE IF NOT EXISTS mood_entries (
+                    id SERIAL PRIMARY KEY,
+                    user_id VARCHAR(255) NOT NULL,
+                    feeling VARCHAR(50) NOT NULL,
+                    note TEXT,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
+            // Create index for faster lookups by user_id and timestamp
+            await this.pool.query(`
+                CREATE INDEX IF NOT EXISTS idx_mood_entries_user_timestamp
+                ON mood_entries(user_id, timestamp DESC)
+            `);
+
             console.log('Database initialized successfully');
         } catch (error) {
             console.error('Error initializing database:', error);
@@ -110,6 +128,46 @@ class UserDataManager {
         // This should be replaced with async calls, but keeping for now
         console.warn('Synchronous data access is deprecated. Use async methods instead.');
         return {};
+    }
+
+    // Mood tracking methods
+    async saveMoodEntry(userId, feeling, note = null) {
+        try {
+            await this.pool.query(
+                'INSERT INTO mood_entries (user_id, feeling, note) VALUES ($1, $2, $3)',
+                [userId, feeling, note]
+            );
+            return true;
+        } catch (error) {
+            console.error('Error saving mood entry:', error);
+            return false;
+        }
+    }
+
+    async getUserMoodHistory(userId, limit = 30) {
+        try {
+            const result = await this.pool.query(
+                'SELECT feeling, note, timestamp FROM mood_entries WHERE user_id = $1 ORDER BY timestamp DESC LIMIT $2',
+                [userId, limit]
+            );
+            return result.rows;
+        } catch (error) {
+            console.error('Error getting user mood history:', error);
+            return [];
+        }
+    }
+
+    async getRecentMoodEntries(limit = 50) {
+        try {
+            const result = await this.pool.query(
+                'SELECT user_id, feeling, note, timestamp FROM mood_entries ORDER BY timestamp DESC LIMIT $1',
+                [limit]
+            );
+            return result.rows;
+        } catch (error) {
+            console.error('Error getting recent mood entries:', error);
+            return [];
+        }
     }
 }
 

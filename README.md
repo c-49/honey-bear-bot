@@ -6,6 +6,7 @@ A Discord bot with modular commands and no-contact streak tracking system.
 
 - **Modular Command System**: Easy to add new commands
 - **No-Contact Tracking**: Track and celebrate no-contact streaks with automatic milestone announcements
+- **Daily Mood Tracker**: Log and visualize your emotional journey with analytics
 - **Random GIF Support**: `/bonk` command with random GIF selection
 - **PostgreSQL Database**: Persistent user data storage
 - **Admin Tools**: Database management and user analytics
@@ -47,6 +48,16 @@ A Discord bot with modular commands and no-contact streak tracking system.
 
 ### General Commands
 - `/bonk @user` - Bonk a user with a random GIF
+- `/hug @user` - Hug a user with a random GIF
+- `/pet @user` - Pet a user with a random GIF
+
+### Mood Tracking Commands
+- `/mood [feeling] [note]` - Log your daily mood with an optional note
+  - Feelings: struggling, difficult, managing, okay, good, great, healing, peaceful
+  - Posts to the designated mood check-in channel for community support
+- `/moodstats [period]` - View your mood analytics with visual charts
+  - Periods: Last 7 days, Last 30 days, or All time
+  - Shows mood distribution, trends, streaks, and statistics
 
 ### No-Contact Tracking Commands
 - `/nocontact set [date]` - Set your no-contact start date (MM-DD-YYYY format, defaults to today)
@@ -99,6 +110,10 @@ module.exports = {
 honey-bear-bot/
 ├── commands/              # Slash commands
 │   ├── bonk.js           # Bonk command with random GIFs
+│   ├── hug.js            # Hug command with random GIFs
+│   ├── pet.js            # Pet command with random GIFs
+│   ├── mood.js           # Daily mood tracking
+│   ├── moodstats.js      # Mood analytics and visualization
 │   ├── nocontact.js      # No-contact tracking system
 │   └── admindata.js      # Admin database management
 ├── utils/                # Utility functions
@@ -114,18 +129,30 @@ honey-bear-bot/
 
 ## Database Schema
 
-The bot uses PostgreSQL with this table structure:
+The bot uses PostgreSQL with these table structures:
 
 ```sql
 CREATE TABLE user_data (
     user_id VARCHAR(255) PRIMARY KEY,
     data JSONB NOT NULL DEFAULT '{}'
 );
+
+CREATE TABLE mood_entries (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    feeling VARCHAR(50) NOT NULL,
+    note TEXT,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 ```
 
-User data is stored as JSONB with fields like:
+**user_data table** stores JSONB with fields like:
 - `noContactStartDate`: ISO date string
 - `announcedMilestones`: Array of milestone days already celebrated
+
+**mood_entries table** tracks:
+- User's daily mood check-ins with optional notes
+- Timestamp for trend analysis and streak calculation
 
 ## Deployment
 
