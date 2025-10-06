@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const userDataManager = require('../utils/userDataManager');
 
 const MOOD_CHANNEL_ID = '1424555152945451058';
@@ -75,8 +75,20 @@ module.exports = {
             // Save to database
             await userDataManager.saveMoodEntry(interaction.user.id, feeling, note);
 
-            // Post to the mood channel
-            await channel.send(message);
+            // Create button for replies
+            const replyButton = new ButtonBuilder()
+                .setCustomId(`mood_reply_${interaction.user.id}`)
+                .setLabel('💬 Reach Out')
+                .setStyle(ButtonStyle.Secondary);
+
+            const row = new ActionRowBuilder()
+                .addComponents(replyButton);
+
+            // Post to the mood channel with button
+            const moodMessage = await channel.send({
+                content: message,
+                components: [row]
+            });
 
             // Confirm to the user
             await interaction.reply({

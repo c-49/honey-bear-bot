@@ -84,6 +84,42 @@ client.on('interactionCreate', async interaction => {
                     }).catch(() => {});
                 }
             }
+        } else if (interaction.customId.startsWith('mood_reply_')) {
+            // Handle mood reply button
+            const userId = interaction.customId.replace('mood_reply_', '');
+            const message = interaction.message;
+
+            try {
+                // Check if thread already exists
+                let thread;
+                if (message.hasThread) {
+                    thread = message.thread;
+                } else {
+                    // Create a new thread
+                    thread = await message.startThread({
+                        name: `Support for ${message.content.match(/\*\*(.+?)\*\*/)?.[1] || 'user'}`,
+                        autoArchiveDuration: 1440, // 24 hours
+                        reason: 'Mood check-in support thread'
+                    });
+                }
+
+                // Send initial message in thread
+                await thread.send(`${interaction.user} is reaching out to offer support 💙`);
+
+                // Acknowledge the button click
+                await interaction.reply({
+                    content: `Thread created! You can now chat in the thread to offer support.`,
+                    flags: 64 // ephemeral
+                });
+
+                console.log(`${interaction.user.tag} reached out in mood thread for user ${userId}`);
+            } catch (error) {
+                console.error('Error creating mood thread:', error);
+                await interaction.reply({
+                    content: 'There was an error creating the support thread.',
+                    flags: 64 // ephemeral
+                }).catch(() => {});
+            }
         }
         return;
     }
