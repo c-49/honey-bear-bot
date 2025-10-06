@@ -97,9 +97,21 @@ client.on('interactionCreate', async interaction => {
                 if (message.hasThread) {
                     thread = message.thread;
                 } else {
+                    // Get the user from the message to get their display name
+                    const mentionMatch = message.content.match(/<@!?(\d+)>/);
+                    let userName = 'user';
+                    if (mentionMatch) {
+                        try {
+                            const user = await interaction.client.users.fetch(mentionMatch[1]);
+                            userName = user.username;
+                        } catch (e) {
+                            console.error('Could not fetch user for thread name:', e);
+                        }
+                    }
+
                     // Create a new thread
                     thread = await message.startThread({
-                        name: `Support for ${message.content.match(/\*\*(.+?)\*\*/)?.[1] || 'user'}`,
+                        name: `Support for ${userName}`,
                         autoArchiveDuration: 1440, // 24 hours
                         reason: 'Mood check-in support thread'
                     });
@@ -138,9 +150,21 @@ client.on('interactionCreate', async interaction => {
                 if (message.hasThread) {
                     thread = message.thread;
                 } else {
+                    // Get the user from the message to get their display name
+                    const mentionMatch = message.content.match(/<@!?(\d+)>/);
+                    let userName = 'user';
+                    if (mentionMatch) {
+                        try {
+                            const user = await interaction.client.users.fetch(mentionMatch[1]);
+                            userName = user.username;
+                        } catch (e) {
+                            console.error('Could not fetch user for thread name:', e);
+                        }
+                    }
+
                     // Create a new thread
                     thread = await message.startThread({
-                        name: `Support for ${message.content.match(/\*\*(.+?)\*\*/)?.[1] || 'user'}`,
+                        name: `Support for ${userName}`,
                         autoArchiveDuration: 1440, // 24 hours
                         reason: 'Affirmation support thread'
                     });
