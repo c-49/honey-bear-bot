@@ -7,7 +7,8 @@ A Discord bot with modular commands and no-contact streak tracking system.
 - **Modular Command System**: Easy to add new commands
 - **No-Contact Tracking**: Track and celebrate no-contact streaks with automatic milestone announcements
 - **Daily Mood Tracker**: Log and visualize your emotional journey with analytics
-- **Random GIF Support**: `/bonk` command with random GIF selection
+- **Affirmation Sharing**: Post positive affirmations with community support threads
+- **Random GIF Support**: `/bonk`, `/hug`, `/pet` commands with random GIF selection
 - **PostgreSQL Database**: Persistent user data storage
 - **Admin Tools**: Database management and user analytics
 - **Automatic Milestone Celebrations**: Daily checks for achievements with channel announcements
@@ -55,9 +56,16 @@ A Discord bot with modular commands and no-contact streak tracking system.
 - `/mood [feeling] [note]` - Log your daily mood with an optional note
   - Feelings: struggling, difficult, managing, okay, good, great, healing, peaceful
   - Posts to the designated mood check-in channel for community support
+  - Includes "💬 Reach Out" button to create support threads
 - `/moodstats [period]` - View your mood analytics with visual charts
   - Periods: Last 7 days, Last 30 days, or All time
   - Shows mood distribution, trends, streaks, and statistics
+
+### Affirmation Tracking
+- `/affirmation [affirmation]` - Share a positive affirmation on your healing journey
+  - Post your affirmations to inspire and encourage others
+  - Automatically reacts with ✨ emoji
+  - Includes "💬 Support" button to create support threads
 
 ### No-Contact Tracking Commands
 - `/nocontact set [date]` - Set your no-contact start date (MM-DD-YYYY format, defaults to today)
@@ -114,6 +122,7 @@ honey-bear-bot/
 │   ├── pet.js            # Pet command with random GIFs
 │   ├── mood.js           # Daily mood tracking
 │   ├── moodstats.js      # Mood analytics and visualization
+│   ├── affirmation.js    # Affirmation sharing
 │   ├── nocontact.js      # No-contact tracking system
 │   └── admindata.js      # Admin database management
 ├── utils/                # Utility functions
@@ -121,6 +130,10 @@ honey-bear-bot/
 │   ├── userDataManager.js # PostgreSQL database manager
 │   └── milestoneChecker.js # Automatic milestone detection
 ├── gifs/                 # GIF storage folder
+│   ├── bonk/             # Bonk GIFs
+│   ├── hug/              # Hug GIFs
+│   ├── pet/              # Pet GIFs
+│   └── welcome/          # Welcome GIFs
 ├── bot.js                # Main bot file with HTTP server
 ├── deploy-commands.js    # Command deployment script
 ├── config.json           # Configuration file
@@ -144,6 +157,13 @@ CREATE TABLE mood_entries (
     note TEXT,
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE affirmations (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    affirmation TEXT NOT NULL,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 ```
 
 **user_data table** stores JSONB with fields like:
@@ -153,6 +173,10 @@ CREATE TABLE mood_entries (
 **mood_entries table** tracks:
 - User's daily mood check-ins with optional notes
 - Timestamp for trend analysis and streak calculation
+
+**affirmations table** tracks:
+- User's positive affirmations and thoughts
+- Timestamp for tracking affirmation history
 
 ## Deployment
 

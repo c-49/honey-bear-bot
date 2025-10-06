@@ -125,6 +125,47 @@ client.on('interactionCreate', async interaction => {
                     flags: 64 // ephemeral
                 }).catch(() => {});
             }
+        } else if (interaction.customId.startsWith('affirmation_reply_')) {
+            // Handle affirmation reply button
+            const userId = interaction.customId.replace('affirmation_reply_', '');
+            const message = interaction.message;
+
+            try {
+                // Check if thread already exists
+                let thread;
+                let isNewThread = false;
+
+                if (message.hasThread) {
+                    thread = message.thread;
+                } else {
+                    // Create a new thread
+                    thread = await message.startThread({
+                        name: `Support for ${message.content.match(/\*\*(.+?)\*\*/)?.[1] || 'user'}`,
+                        autoArchiveDuration: 1440, // 24 hours
+                        reason: 'Affirmation support thread'
+                    });
+                    isNewThread = true;
+                }
+
+                // Only send initial message if it's a new thread
+                if (isNewThread) {
+                    await thread.send(`${interaction.user} is joining to support your affirmation 💙`);
+                }
+
+                // Acknowledge the button click
+                await interaction.reply({
+                    content: isNewThread ? `Thread created! You can now chat in the thread to offer support.` : `You can chat in the existing thread to offer support.`,
+                    flags: 64 // ephemeral
+                });
+
+                console.log(`${interaction.user.tag} reached out in affirmation thread for user ${userId}`);
+            } catch (error) {
+                console.error('Error creating affirmation thread:', error);
+                await interaction.reply({
+                    content: 'There was an error creating the support thread.',
+                    flags: 64 // ephemeral
+                }).catch(() => {});
+            }
         }
         return;
     }

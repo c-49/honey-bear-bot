@@ -36,6 +36,22 @@ class UserDataManager {
                 ON mood_entries(user_id, timestamp DESC)
             `);
 
+            // Create the affirmations table if it doesn't exist
+            await this.pool.query(`
+                CREATE TABLE IF NOT EXISTS affirmations (
+                    id SERIAL PRIMARY KEY,
+                    user_id VARCHAR(255) NOT NULL,
+                    affirmation TEXT NOT NULL,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
+            // Create index for faster lookups by user_id and timestamp
+            await this.pool.query(`
+                CREATE INDEX IF NOT EXISTS idx_affirmations_user_timestamp
+                ON affirmations(user_id, timestamp DESC)
+            `);
+
             console.log('Database initialized successfully');
         } catch (error) {
             console.error('Error initializing database:', error);
@@ -166,6 +182,46 @@ class UserDataManager {
             return result.rows;
         } catch (error) {
             console.error('Error getting recent mood entries:', error);
+            return [];
+        }
+    }
+
+    // Affirmation tracking methods
+    async saveAffirmation(userId, affirmation) {
+        try {
+            await this.pool.query(
+                'INSERT INTO affirmations (user_id, affirmation) VALUES ($1, $2)',
+                [userId, affirmation]
+            );
+            return true;
+        } catch (error) {
+            console.error('Error saving affirmation:', error);
+            return false;
+        }
+    }
+
+    async getUserAffirmations(userId, limit = 30) {
+        try {
+            const result = await this.pool.query(
+                'SELECT affirmation, timestamp FROM affirmations WHERE user_id = $1 ORDER BY timestamp DESC LIMIT $2',
+                [userId, limit]
+            );
+            return result.rows;
+        } catch (error) {
+            console.error('Error getting user affirmations:', error);
+            return [];
+        }
+    }
+
+    async getRecentAffirmations(limit = 50) {
+        try {
+            const result = await this.pool.query(
+                'SELECT user_id, affirmation, timestamp FROM affirmations ORDER BY timestamp DESC LIMIT $1',
+                [limit]
+            );
+            return result.rows;
+        } catch (error) {
+            console.error('Error getting recent affirmations:', error);
             return [];
         }
     }
