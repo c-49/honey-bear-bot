@@ -43,6 +43,9 @@ module.exports = {
         ),
 
     async execute(interaction) {
+        // Defer reply to prevent duplicate executions
+        await interaction.deferReply({ ephemeral: true });
+
         const feeling = interaction.options.getString('feeling');
         const note = interaction.options.getString('note');
         const emoji = MOOD_EMOJIS[feeling];
@@ -52,9 +55,8 @@ module.exports = {
             const channel = await interaction.client.channels.fetch(MOOD_CHANNEL_ID);
 
             if (!channel) {
-                return interaction.reply({
-                    content: 'The mood check-in channel is not available right now.',
-                    ephemeral: true
+                return interaction.editReply({
+                    content: 'The mood check-in channel is not available right now.'
                 });
             }
 
@@ -91,16 +93,14 @@ module.exports = {
             });
 
             // Confirm to the user
-            await interaction.reply({
-                content: `Your mood has been shared in the check-in channel. ${emoji}`,
-                ephemeral: true
+            await interaction.editReply({
+                content: `Your mood has been shared in the check-in channel. ${emoji}`
             });
 
         } catch (error) {
             console.error('Error posting mood check-in:', error);
-            await interaction.reply({
-                content: 'There was an error posting your mood check-in. Please try again later.',
-                ephemeral: true
+            await interaction.editReply({
+                content: 'There was an error posting your mood check-in. Please try again later.'
             });
         }
     },

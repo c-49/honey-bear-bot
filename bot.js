@@ -92,6 +92,8 @@ client.on('interactionCreate', async interaction => {
             try {
                 // Check if thread already exists
                 let thread;
+                let isNewThread = false;
+
                 if (message.hasThread) {
                     thread = message.thread;
                 } else {
@@ -101,14 +103,17 @@ client.on('interactionCreate', async interaction => {
                         autoArchiveDuration: 1440, // 24 hours
                         reason: 'Mood check-in support thread'
                     });
+                    isNewThread = true;
                 }
 
-                // Send initial message in thread
-                await thread.send(`${interaction.user} is reaching out to offer support 💙`);
+                // Only send initial message if it's a new thread
+                if (isNewThread) {
+                    await thread.send(`${interaction.user} is reaching out to offer support 💙`);
+                }
 
                 // Acknowledge the button click
                 await interaction.reply({
-                    content: `Thread created! You can now chat in the thread to offer support.`,
+                    content: isNewThread ? `Thread created! You can now chat in the thread to offer support.` : `You can chat in the existing thread to offer support.`,
                     flags: 64 // ephemeral
                 });
 
