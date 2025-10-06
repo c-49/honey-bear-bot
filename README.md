@@ -66,6 +66,9 @@ A Discord bot with modular commands and no-contact streak tracking system.
   - Post your affirmations to inspire and encourage others
   - Automatically reacts with ✨ emoji
   - Includes "💬 Support" button to create support threads
+- `/affirmationstats [period]` - View your affirmation tracking statistics
+  - Periods: Last 7 days, Last 30 days, or All time
+  - Shows total affirmations, current streak, and recent affirmations
 
 ### No-Contact Tracking Commands
 - `/nocontact set [date]` - Set your no-contact start date (MM-DD-YYYY format, defaults to today)
@@ -123,6 +126,7 @@ honey-bear-bot/
 │   ├── mood.js           # Daily mood tracking
 │   ├── moodstats.js      # Mood analytics and visualization
 │   ├── affirmation.js    # Affirmation sharing
+│   ├── affirmationstats.js # Affirmation analytics
 │   ├── nocontact.js      # No-contact tracking system
 │   └── admindata.js      # Admin database management
 ├── utils/                # Utility functions
