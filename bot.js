@@ -13,7 +13,6 @@ const client = new Client({
 });
 
 client.commands = new Collection();
-const welcomedUsers = new Set(); // Track users who have been welcomed
 
 function loadCommands() {
     const commandsPath = path.join(__dirname, 'commands');
@@ -152,16 +151,17 @@ client.on('guildMemberUpdate', async (oldMember, newMember) => {
         const oldRoleCount = oldMember.roles.cache.size;
         const newRoleCount = newMember.roles.cache.size;
 
-        if (newRoleCount > oldRoleCount && !hasUnderageRole && !welcomedUsers.has(newMember.id)) {
+        // Skip if user already has the welcome role (already been welcomed)
+        if (oldMember.roles.cache.has(WELCOME_ROLE_ID)) {
+            return;
+        }
+
+        if (newRoleCount > oldRoleCount && !hasUnderageRole) {
             // User likely completed onboarding, check if they should get welcome
             if (newMember.roles.cache.has(NO_WELCOME_ROLE_ID)) {
                 console.log(`Skipping welcome for ${newMember.user.tag} (has no-welcome role)`);
-                welcomedUsers.add(newMember.id); // Mark as processed to prevent future attempts
                 return;
             }
-
-            // Mark user as welcomed before doing anything else
-            welcomedUsers.add(newMember.id);
 
             // Assign welcome role
             try {
