@@ -27,7 +27,7 @@ async function getRandomGif(gifsFolder = './gifs', width = config.gif.width, hei
             return originalPath;
         }
 
-        // For GIFs, resize/caching (background generation)
+        // For GIFs, check cache first (should exist after pre-deploy)
         if (fileName.toLowerCase().endsWith('.gif')) {
             // Build a cache path: e.g. ./gifs/resized/100x100/<category>/<filename>
             const parent = path.dirname(gifsFolder); // e.g. ./gifs
@@ -35,19 +35,19 @@ async function getRandomGif(gifsFolder = './gifs', width = config.gif.width, hei
             const cacheDir = path.join(parent, 'resized', `${width}x${height}`, category);
             const cachedPath = path.join(cacheDir, fileName);
 
-            // If cached version exists, return it immediately
+            // Return cached version if it exists (should be pre-generated from deploy-commands.js)
             if (fs.existsSync(cachedPath)) {
                 return cachedPath;
             }
 
-            // Ensure cache directory exists
+            // Fallback: if cache doesn't exist, return original (shouldn't happen after pre-deploy)
+            // but still trigger background generation in case new GIFs were added manually
             try {
                 fs.mkdirSync(cacheDir, { recursive: true });
             } catch (e) {
-                // ignore mkdir errors; we'll just return original
+                // ignore mkdir errors
             }
 
-            // Generate the cached GIF in background (non-blocking). Use gifsicle if available, otherwise ImageMagick `convert`.
             try {
                 const gifsicleAvailable = (() => {
                     try {
@@ -66,7 +66,6 @@ async function getRandomGif(gifsFolder = './gifs', width = config.gif.width, hei
                     child.unref();
                     console.log(`Background caching (gifsicle) started for ${fileName}`);
                 } else {
-                    // Fallback to ImageMagick `convert` if gifsicle isn't available
                     const args = [originalPath, '-coalesce', '-resize', `${width}x${height}`, '-layers', 'Optimize', cachedPath];
                     const child = spawn('convert', args, {
                         detached: true,
@@ -77,10 +76,9 @@ async function getRandomGif(gifsFolder = './gifs', width = config.gif.width, hei
                 }
             } catch (err) {
                 console.error('Could not start background caching process:', err && err.message ? err.message : err);
-                // fall through and return original
             }
 
-            // Return original while the cached version is generated in background
+            // Return original as fallback while background cache generation runs
             return originalPath;
         }
 
