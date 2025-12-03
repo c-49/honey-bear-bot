@@ -1,7 +1,9 @@
 const fs = require('fs');
 const path = require('path');
-const sharp = require('sharp');
 const os = require('os');
+const { execFile } = require('child_process');
+const util = require('util');
+const execFileAsync = util.promisify(execFile);
 const config = require('../config.json');
 
 async function getRandomGif(gifsFolder = './gifs', width = config.gif.width, height = config.gif.height) {
@@ -20,28 +22,33 @@ async function getRandomGif(gifsFolder = './gifs', width = config.gif.width, hei
 
         const randomIndex = Math.floor(Math.random() * gifFiles.length);
         const originalPath = path.join(gifsFolder, gifFiles[randomIndex]);
+        const fileName = gifFiles[randomIndex];
 
         // If resizing is disabled, return original path
         if (!config.gif.enabled) {
             return originalPath;
         }
 
-        // Create a resized version in temp directory
-        const tempPath = path.join(os.tmpdir(), `resized_${Date.now()}_${gifFiles[randomIndex]}`);
+        // For GIFs, resize with ffmpeg to preserve animation
+        if (fileName.toLowerCase().endsWith('.gif')) {
+            const tempPath = path.join(os.tmpdir(), `resized_${Date.now()}_${fileName}`);
 
-        try {
-            await sharp(originalPath, { animated: true })
-                .resize(width, height, { 
-                    fit: 'inside', 
-                    withoutEnlargement: true 
-                })
-                .toFile(tempPath);
-
-            return tempPath;
-        } catch (resizeError) {
-            console.error('Error resizing image, returning original:', resizeError);
-            return originalPath;
+            try {
+                await execFileAsync('convert', [
+                    originalPath,
+                    '-resize', `${width}x${height}>`,
+                    tempPath
+                ]);
+                console.log(`Resized GIF: ${fileName} to ${width}x${height}`);
+                return tempPath;
+            } catch (err) {
+                console.error('Error resizing GIF with ImageMagick, returning original:', err.message);
+                return originalPath;
+            }
         }
+
+        // For static images, return original
+        return originalPath;
     } catch (error) {
         console.error('Error reading gifs folder:', error);
         return null;
