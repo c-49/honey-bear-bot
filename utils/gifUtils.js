@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
-const { spawn, spawnSync } = require('child_process');
+const sharp = require('sharp');
 const config = require('../config.json');
 
 function getRandomGif(gifsFolder = './gifs', width = config.gif?.width || 100, height = config.gif?.height || 100) {
@@ -44,49 +43,28 @@ function getRandomGif(gifsFolder = './gifs', width = config.gif?.width || 100, h
                 return cachedPath;
             }
 
-            console.log(`[gifUtils] Cache miss for ${fileName}, returning original and triggering background generation`);
+            console.log(`[gifUtils] Cache miss for ${fileName}, generating resized version synchronously`);
 
-            // Fallback: if cache doesn't exist, return original (shouldn't happen after pre-deploy)
-            // but still trigger background generation in case new GIFs were added manually
+            // Create cache directory
             try {
                 fs.mkdirSync(cacheDir, { recursive: true });
             } catch (e) {
-                // ignore mkdir errors
+                console.error(`[gifUtils] Failed to create cache dir: ${e.message}`);
+                return originalPath;
             }
 
-            // Spawn background job (non-blocking)
+            // Resize synchronously using sharp
             try {
-                const gifsicleAvailable = (() => {
-                    try {
-                        const res = spawnSync('which', ['gifsicle']);
-                        return res && res.status === 0;
-                    } catch (e) {
-                        return false;
-                    }
-                })();
+                sharp(originalPath, { animated: true })
+                    .resize(width, height, { fit: 'inside' })
+                    .toFile(cachedPath);
 
-                if (gifsicleAvailable) {
-                    const child = spawn('gifsicle', ['--resize-fit', `${width}x${height}`, originalPath, '-o', cachedPath], {
-                        detached: true,
-                        stdio: 'ignore'
-                    });
-                    child.unref();
-                    console.log(`Background caching (gifsicle) started for ${fileName}`);
-                } else {
-                    const args = [originalPath, '-coalesce', '-resize', `${width}x${height}`, '-layers', 'Optimize', cachedPath];
-                    const child = spawn('convert', args, {
-                        detached: true,
-                        stdio: 'ignore'
-                    });
-                    child.unref();
-                    console.log(`Background caching (convert) started for ${fileName}`);
-                }
+                console.log(`[gifUtils] ✓ Resized ${fileName} to ${width}x${height}`);
+                return cachedPath;
             } catch (err) {
-                console.error('Could not start background caching process:', err && err.message ? err.message : err);
+                console.error(`[gifUtils] Failed to resize ${fileName}: ${err.message}`);
+                return originalPath;
             }
-
-            // Return original as fallback
-            return originalPath;
         }
 
         // Safety fallback: return original for non-handled cases

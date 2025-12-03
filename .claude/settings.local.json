@@ -2,7 +2,16 @@
   "permissions": {
     "allow": [
       "Bash(node:*)",
-      "Bash(npm install)"
+      "Bash(npm install)",
+      "Bash(dir:*)",
+      "Bash(if [ -d \"gifs/resized\" ])",
+      "Bash(then ls -la gifs/resized/)",
+      "Bash(elif [ -d \"gifs\\resized\" ])",
+      "Bash(then dir gifsresized /s /b)",
+      "Bash(fi)",
+      "Bash(where convert)",
+      "Bash(convert:*)",
+      "Bash(where magick)"
     ],
     "deny": [],
     "ask": []

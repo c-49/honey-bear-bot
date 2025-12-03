@@ -10,7 +10,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const sharp = require('sharp');
 const config = require('../config.json');
 
 const WIDTH = config.gif?.width || 100;
@@ -22,37 +22,7 @@ console.log(`📦 GIF Pre-resize Script`);
 console.log(`Target size: ${WIDTH}x${HEIGHT}`);
 console.log(`GIFs root: ${GIFS_ROOT}`);
 console.log(`Cache root: ${CACHE_ROOT}`);
-console.log('');
-
-// Detect available tool
-function detectTool() {
-    try {
-        const gifsicle = spawnSync('which', ['gifsicle']);
-        if (gifsicle && gifsicle.status === 0) return 'gifsicle';
-    } catch (e) {
-        // ignore
-    }
-
-    try {
-        const convert = spawnSync('which', ['convert']);
-        if (convert && convert.status === 0) return 'convert';
-    } catch (e) {
-        // ignore
-    }
-
-    return null;
-}
-
-const tool = detectTool();
-if (!tool) {
-    console.error('❌ ERROR: Neither gifsicle nor ImageMagick convert is installed.');
-    console.error('Install one of the following:');
-    console.error('  Ubuntu/Debian: sudo apt-get install -y gifsicle');
-    console.error('  Ubuntu/Debian: sudo apt-get install -y imagemagick');
-    process.exit(1);
-}
-
-console.log(`✓ Using tool: ${tool}`);
+console.log(`✓ Using tool: sharp`);
 console.log('');
 
 // Ensure cache root exists
@@ -92,66 +62,69 @@ function walkGifs() {
     return result;
 }
 
-function resizeGif(srcPath, dstPath) {
-    if (tool === 'gifsicle') {
-        const res = spawnSync('gifsicle', ['--resize-fit', `${WIDTH}x${HEIGHT}`, srcPath, '-o', dstPath], { stdio: 'pipe' });
-        return res.status === 0;
-    } else if (tool === 'convert') {
-        const res = spawnSync('convert', [srcPath, '-coalesce', '-resize', `${WIDTH}x${HEIGHT}`, '-layers', 'Optimize', dstPath], { stdio: 'pipe' });
-        return res.status === 0;
+async function resizeGif(srcPath, dstPath) {
+    try {
+        await sharp(srcPath, { animated: true })
+            .resize(WIDTH, HEIGHT, { fit: 'inside' })
+            .toFile(dstPath);
+        return true;
+    } catch (err) {
+        console.error(`Error: ${err.message}`);
+        return false;
     }
-    return false;
 }
 
 // Main logic
-const gifs = walkGifs();
-if (gifs.length === 0) {
-    console.warn('⚠️  No GIFs found.');
-    process.exit(0);
-}
-
-console.log(`Found ${gifs.length} GIF(s). Processing...`);
-console.log('');
-
-let processed = 0;
-let skipped = 0;
-let failed = 0;
-
-for (const gif of gifs) {
-    const categoryCache = path.join(CACHE_ROOT, gif.category);
-    try {
-        fs.mkdirSync(categoryCache, { recursive: true });
-    } catch (e) {
-        console.error(`❌ Failed to create category cache dir: ${categoryCache}`);
-        failed++;
-        continue;
+(async () => {
+    const gifs = walkGifs();
+    if (gifs.length === 0) {
+        console.warn('⚠️  No GIFs found.');
+        process.exit(0);
     }
 
-    const dstPath = path.join(categoryCache, gif.filename);
+    console.log(`Found ${gifs.length} GIF(s). Processing...`);
+    console.log('');
 
-    // Skip if already cached
-    if (fs.existsSync(dstPath)) {
-        console.log(`⊘ ${gif.category}/${gif.filename} (already cached)`);
-        skipped++;
-        continue;
+    let processed = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    for (const gif of gifs) {
+        const categoryCache = path.join(CACHE_ROOT, gif.category);
+        try {
+            fs.mkdirSync(categoryCache, { recursive: true });
+        } catch (e) {
+            console.error(`❌ Failed to create category cache dir: ${categoryCache}`);
+            failed++;
+            continue;
+        }
+
+        const dstPath = path.join(categoryCache, gif.filename);
+
+        // Skip if already cached
+        if (fs.existsSync(dstPath)) {
+            console.log(`⊘ ${gif.category}/${gif.filename} (already cached)`);
+            skipped++;
+            continue;
+        }
+
+        // Resize
+        if (await resizeGif(gif.srcPath, dstPath)) {
+            console.log(`✓ ${gif.category}/${gif.filename} → ${WIDTH}x${HEIGHT}`);
+            processed++;
+        } else {
+            console.error(`❌ ${gif.category}/${gif.filename} (resize failed)`);
+            failed++;
+        }
     }
 
-    // Resize
-    if (resizeGif(gif.srcPath, dstPath)) {
-        console.log(`✓ ${gif.category}/${gif.filename} → ${WIDTH}x${HEIGHT}`);
-        processed++;
+    console.log('');
+    console.log(`Summary: ${processed} processed, ${skipped} skipped, ${failed} failed.`);
+    if (failed === 0) {
+        console.log('✓ Pre-resize complete!');
+        process.exit(0);
     } else {
-        console.error(`❌ ${gif.category}/${gif.filename} (resize failed)`);
-        failed++;
+        console.warn('⚠️  Some GIFs failed to resize.');
+        process.exit(1);
     }
-}
-
-console.log('');
-console.log(`Summary: ${processed} processed, ${skipped} skipped, ${failed} failed.`);
-if (failed === 0) {
-    console.log('✓ Pre-resize complete!');
-    process.exit(0);
-} else {
-    console.warn('⚠️  Some GIFs failed to resize.');
-    process.exit(1);
-}
+})();

@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: honey-bear-bot
+    env: node
+    buildCommand: |
+      npm install
+      node scripts/preresize-gifs.js
+    startCommand: node bot.js
+    envVars:
+      - key: NODE_ENV
+        value: production
