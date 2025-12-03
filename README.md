@@ -35,12 +35,37 @@ A Discord bot with modular commands and no-contact streak tracking system.
    - Place your bonk GIFs in the `gifs/` folder
    - Supported formats: `.gif`, `.png`, `.jpg`, `.jpeg`
 
-4. **Deploy Commands**
+4. **Pre-Resize GIFs (Optional but Recommended)**
+   
+   The bot includes a smart GIF caching system to avoid interaction timeouts during resizing. GIFs are cached in `gifs/resized/<WIDTH>x<HEIGHT>/` directories based on your `config.json` settings (default: 100x100).
+   
+   To pre-warm the cache and ensure instant GIF responses:
+   
+   - Install gifsicle (recommended for speed and quality):
+     ```bash
+     sudo apt-get update
+     sudo apt-get install -y gifsicle
+     ```
+     Or ImageMagick's `convert` as a fallback:
+     ```bash
+     sudo apt-get install -y imagemagick
+     ```
+   
+   - Run the pre-resize script:
+     ```bash
+     node scripts/preresize-gifs.js
+     ```
+   
+   This will batch-resize all GIFs in `gifs/*/` to the configured size and save them to the cache directory. Subsequent bot commands will use cached GIFs for instant responses.
+   
+   If you skip this step, the bot will still work—GIFs will be resized on first request (falling back to original while generation happens in background).
+
+5. **Deploy Commands**
    ```bash
    node deploy-commands.js
    ```
 
-5. **Start the Bot**
+6. **Start the Bot**
    ```bash
    npm start
    ```

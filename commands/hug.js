@@ -13,14 +13,16 @@ module.exports = {
         ),
 
     async execute(interaction) {
+        // Defer immediately to give time for resizing/IO
+        await interaction.deferReply();
+
         const targetUser = interaction.options.getUser('user');
 
         const gifPath = await getRandomGif('./gifs/hug');
 
         if (!gifPath) {
-            return interaction.reply({
-                content: 'No hug GIFs found! Please add some GIFs to the gifs/hug folder.',
-                ephemeral: true
+            return interaction.editReply({
+                content: 'No hug GIFs found! Please add some GIFs to the gifs/hug folder.'
             });
         }
 
@@ -31,7 +33,7 @@ module.exports = {
                 ? `${interaction.user} hugged themselves! 🤗`
                 : `${interaction.user} hugged ${targetUser}! 🤗`;
 
-            await interaction.reply({
+            await interaction.editReply({
                 content: content,
                 files: [attachment]
             });
@@ -41,10 +43,11 @@ module.exports = {
             const content = isSelfTarget
                 ? `${interaction.user} hugged themselves! 🤗 (GIF failed to load)`
                 : `${interaction.user} hugged ${targetUser}! 🤗 (GIF failed to load)`;
-
-            await interaction.reply({
-                content: content,
-            });
+            try {
+                await interaction.editReply({ content });
+            } catch (e) {
+                await interaction.followUp({ content, ephemeral: true }).catch(() => {});
+            }
         }
     },
 };

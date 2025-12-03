@@ -1,9 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { execFile } = require('child_process');
-const util = require('util');
-const execFileAsync = util.promisify(execFile);
+const { spawn, spawnSync } = require('child_process');
 const config = require('../config.json');
 
 async function getRandomGif(gifsFolder = './gifs', width = config.gif.width, height = config.gif.height) {
@@ -29,25 +27,64 @@ async function getRandomGif(gifsFolder = './gifs', width = config.gif.width, hei
             return originalPath;
         }
 
-        // For GIFs, resize with ffmpeg to preserve animation
+        // For GIFs, resize/caching (background generation)
         if (fileName.toLowerCase().endsWith('.gif')) {
-            const tempPath = path.join(os.tmpdir(), `resized_${Date.now()}_${fileName}`);
+            // Build a cache path: e.g. ./gifs/resized/100x100/<category>/<filename>
+            const parent = path.dirname(gifsFolder); // e.g. ./gifs
+            const category = path.basename(gifsFolder); // e.g. pet
+            const cacheDir = path.join(parent, 'resized', `${width}x${height}`, category);
+            const cachedPath = path.join(cacheDir, fileName);
 
-            try {
-                await execFileAsync('convert', [
-                    originalPath,
-                    '-resize', `${width}x${height}>`,
-                    tempPath
-                ]);
-                console.log(`Resized GIF: ${fileName} to ${width}x${height}`);
-                return tempPath;
-            } catch (err) {
-                console.error('Error resizing GIF with ImageMagick, returning original:', err.message);
-                return originalPath;
+            // If cached version exists, return it immediately
+            if (fs.existsSync(cachedPath)) {
+                return cachedPath;
             }
+
+            // Ensure cache directory exists
+            try {
+                fs.mkdirSync(cacheDir, { recursive: true });
+            } catch (e) {
+                // ignore mkdir errors; we'll just return original
+            }
+
+            // Generate the cached GIF in background (non-blocking). Use gifsicle if available, otherwise ImageMagick `convert`.
+            try {
+                const gifsicleAvailable = (() => {
+                    try {
+                        const res = spawnSync('which', ['gifsicle']);
+                        return res && res.status === 0;
+                    } catch (e) {
+                        return false;
+                    }
+                })();
+
+                if (gifsicleAvailable) {
+                    const child = spawn('gifsicle', ['--resize-fit', `${width}x${height}`, originalPath, '-o', cachedPath], {
+                        detached: true,
+                        stdio: 'ignore'
+                    });
+                    child.unref();
+                    console.log(`Background caching (gifsicle) started for ${fileName}`);
+                } else {
+                    // Fallback to ImageMagick `convert` if gifsicle isn't available
+                    const args = [originalPath, '-coalesce', '-resize', `${width}x${height}`, '-layers', 'Optimize', cachedPath];
+                    const child = spawn('convert', args, {
+                        detached: true,
+                        stdio: 'ignore'
+                    });
+                    child.unref();
+                    console.log(`Background caching (convert) started for ${fileName}`);
+                }
+            } catch (err) {
+                console.error('Could not start background caching process:', err && err.message ? err.message : err);
+                // fall through and return original
+            }
+
+            // Return original while the cached version is generated in background
+            return originalPath;
         }
 
-        // For static images, return original
+        // Safety fallback: return original for non-handled cases
         return originalPath;
     } catch (error) {
         console.error('Error reading gifs folder:', error);

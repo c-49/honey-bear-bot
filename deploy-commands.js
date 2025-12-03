@@ -1,7 +1,16 @@
 const { REST, Routes } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 require('dotenv').config();
+
+// Pre-resize GIFs before deploying commands
+console.log('🔄 Pre-resizing GIFs...');
+const preresize = spawnSync('node', [path.join(__dirname, 'scripts', 'preresize-gifs.js')], { stdio: 'inherit' });
+if (preresize.status !== 0 && preresize.status !== null) {
+    console.warn('⚠️  GIF pre-resize had issues (non-zero exit). Continuing anyway...');
+}
+console.log('');
 
 const commands = [];
 const commandsPath = path.join(__dirname, 'commands');

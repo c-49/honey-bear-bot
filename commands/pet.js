@@ -13,14 +13,16 @@ module.exports = {
         ),
 
     async execute(interaction) {
+        // Defer immediately to give time for resizing/IO
+        await interaction.deferReply();
+
         const targetUser = interaction.options.getUser('user');
 
         const gifPath = await getRandomGif('./gifs/pet');
 
         if (!gifPath) {
-            return interaction.reply({
-                content: 'No pet GIFs found! Please add some GIFs to the gifs/pet folder.',
-                ephemeral: true
+            return interaction.editReply({
+                content: 'No pet GIFs found! Please add some GIFs to the gifs/pet folder.'
             });
         }
 
@@ -31,7 +33,7 @@ module.exports = {
                 ? `${interaction.user} petted themselves! 🐾`
                 : `${interaction.user} petted ${targetUser}! 🐾`;
 
-            await interaction.reply({
+            await interaction.editReply({
                 content: content,
                 files: [attachment]
             });
@@ -41,10 +43,11 @@ module.exports = {
             const content = isSelfTarget
                 ? `${interaction.user} petted themselves! 🐾 (GIF failed to load)`
                 : `${interaction.user} petted ${targetUser}! 🐾 (GIF failed to load)`;
-
-            await interaction.reply({
-                content: content,
-            });
+            try {
+                await interaction.editReply({ content });
+            } catch (e) {
+                await interaction.followUp({ content, ephemeral: true }).catch(() => {});
+            }
         }
     },
 };
