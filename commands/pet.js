@@ -18,7 +18,7 @@ module.exports = {
 
         const targetUser = interaction.options.getUser('user');
 
-        const gifPath = await getRandomGif('./gifs/pet');
+        const gifPath = getRandomGif('./gifs/pet');
 
         if (!gifPath) {
             return interaction.editReply({

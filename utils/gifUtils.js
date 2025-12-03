@@ -4,7 +4,7 @@ const os = require('os');
 const { spawn, spawnSync } = require('child_process');
 const config = require('../config.json');
 
-async function getRandomGif(gifsFolder = './gifs', width = config.gif.width, height = config.gif.height) {
+function getRandomGif(gifsFolder = './gifs', width = config.gif?.width || 100, height = config.gif?.height || 100) {
     try {
         const files = fs.readdirSync(gifsFolder);
         const gifFiles = files.filter(file =>
@@ -23,7 +23,7 @@ async function getRandomGif(gifsFolder = './gifs', width = config.gif.width, hei
         const fileName = gifFiles[randomIndex];
 
         // If resizing is disabled, return original path
-        if (!config.gif.enabled) {
+        if (!config?.gif?.enabled) {
             return originalPath;
         }
 
@@ -44,7 +44,7 @@ async function getRandomGif(gifsFolder = './gifs', width = config.gif.width, hei
                 return cachedPath;
             }
 
-            console.log(`[gifUtils] Cache miss for ${fileName}, triggering background generation`);
+            console.log(`[gifUtils] Cache miss for ${fileName}, returning original and triggering background generation`);
 
             // Fallback: if cache doesn't exist, return original (shouldn't happen after pre-deploy)
             // but still trigger background generation in case new GIFs were added manually
@@ -54,6 +54,7 @@ async function getRandomGif(gifsFolder = './gifs', width = config.gif.width, hei
                 // ignore mkdir errors
             }
 
+            // Spawn background job (non-blocking)
             try {
                 const gifsicleAvailable = (() => {
                     try {
@@ -84,7 +85,7 @@ async function getRandomGif(gifsFolder = './gifs', width = config.gif.width, hei
                 console.error('Could not start background caching process:', err && err.message ? err.message : err);
             }
 
-            // Return original as fallback while background cache generation runs
+            // Return original as fallback
             return originalPath;
         }
 

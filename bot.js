@@ -51,7 +51,7 @@ client.on('interactionCreate', async interaction => {
                 // Defer the reply immediately to prevent timeout
                 await interaction.deferReply();
 
-                const gifPath = await getRandomGif('./gifs/welcome');
+                const gifPath = getRandomGif('./gifs/welcome');
 
                 if (!gifPath) {
                     return interaction.editReply({
