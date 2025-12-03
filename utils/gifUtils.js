@@ -30,7 +30,7 @@ async function getRandomGif(gifsFolder = './gifs', width = config.gif.width, hei
         const tempPath = path.join(os.tmpdir(), `resized_${Date.now()}_${gifFiles[randomIndex]}`);
 
         try {
-            await sharp(originalPath)
+            await sharp(originalPath, { animated: true })
                 .resize(width, height, { 
                     fit: 'inside', 
                     withoutEnlargement: true 
