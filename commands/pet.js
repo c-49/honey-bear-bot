@@ -15,7 +15,7 @@ module.exports = {
     async execute(interaction) {
         const targetUser = interaction.options.getUser('user');
 
-        const gifPath = getRandomGif('./gifs/pet');
+        const gifPath = await getRandomGif('./gifs/pet');
 
         if (!gifPath) {
             return interaction.reply({

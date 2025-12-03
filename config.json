@@ -2,5 +2,10 @@
   "token": "YOUR_BOT_TOKEN_HERE",
   "clientId": "YOUR_CLIENT_ID_HERE",
   "guildId": "YOUR_GUILD_ID_HERE",
-  "gifsFolder": "./gifs"
+  "gifsFolder": "./gifs",
+  "gif": {
+    "width": 100,
+    "height": 100,
+    "enabled": true
+  }
 }
