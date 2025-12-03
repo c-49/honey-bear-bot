@@ -30,15 +30,21 @@ async function getRandomGif(gifsFolder = './gifs', width = config.gif.width, hei
         // For GIFs, check cache first (should exist after pre-deploy)
         if (fileName.toLowerCase().endsWith('.gif')) {
             // Build a cache path: e.g. ./gifs/resized/100x100/<category>/<filename>
-            const parent = path.dirname(gifsFolder); // e.g. ./gifs
+            // gifsFolder is like './gifs/pet', so we need the gifs root (parent)
+            const gifsRoot = path.resolve(gifsFolder, '..');
             const category = path.basename(gifsFolder); // e.g. pet
-            const cacheDir = path.join(parent, 'resized', `${width}x${height}`, category);
+            const cacheDir = path.join(gifsRoot, 'resized', `${width}x${height}`, category);
             const cachedPath = path.join(cacheDir, fileName);
+
+            console.log(`[gifUtils] Checking cache for ${fileName}: ${cachedPath}`);
 
             // Return cached version if it exists (should be pre-generated from deploy-commands.js)
             if (fs.existsSync(cachedPath)) {
+                console.log(`[gifUtils] ✓ Cache hit: ${cachedPath}`);
                 return cachedPath;
             }
+
+            console.log(`[gifUtils] Cache miss for ${fileName}, triggering background generation`);
 
             // Fallback: if cache doesn't exist, return original (shouldn't happen after pre-deploy)
             // but still trigger background generation in case new GIFs were added manually
