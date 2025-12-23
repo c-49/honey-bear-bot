@@ -68,18 +68,6 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('check')
         .setDescription('Flag a user or message for a wellness check')
-        .addStringOption(option =>
-            option
-                .setName('msg')
-                .setDescription('Message ID or link to check from')
-                .setRequired(false)
-        )
-        .addUserOption(option =>
-            option
-                .setName('user')
-                .setDescription('User to check on (optional if msg provided)')
-                .setRequired(false)
-        )
         .addBooleanOption(option =>
             option
                 .setName('autodm')
@@ -103,6 +91,18 @@ module.exports = {
             option
                 .setName('customdate')
                 .setDescription('Custom date if selected (format: YYYY-MM-DD or YYYY-MM-DD HH:mm)')
+                .setRequired(false)
+        )
+        .addStringOption(option =>
+            option
+                .setName('msg')
+                .setDescription('Message ID or link to check from')
+                .setRequired(false)
+        )
+        .addUserOption(option =>
+            option
+                .setName('user')
+                .setDescription('User to check on (optional if msg provided)')
                 .setRequired(false)
         )
         .addStringOption(option =>
