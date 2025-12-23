@@ -100,6 +100,26 @@ A Discord bot with modular commands and no-contact streak tracking system.
 - `/nocontact check` - Check your current no-contact streak
 - `/nocontact reset` - Reset your no-contact record and start over
 
+### Wellness Check-In Commands (Moderators Only)
+- `/check [msg] [user] [autodm] [time] [customdate] [note]` - Flag a user or message for a wellness check
+  - **msg**: Message ID or Discord link (optional, if not using user parameter)
+  - **user**: User to check on (optional, if not using msg parameter)
+  - **autodm**: Enable/disable automatic DM wellness check (true/false, required)
+  - **time**: When to check or remind (1h, 3h, 6h, 24h, or custom)
+  - **customdate**: Custom date for check (format: YYYY-MM-DD or YYYY-MM-DD HH:mm, only if time is "custom")
+  - **note**: Optional note explaining why the wellness check is needed
+
+**Wellness Check Features:**
+- **Auto-DM Mode**: Bot DMs the user to check in, monitors for response hourly for 24 hours
+  - If user responds to DM, check auto-resolves with green confirmation
+  - If DMs are disabled, mod chat is notified
+  - If 24 hours pass with no response, red timeout notification sent to mod chat
+- **Reminder Mode**: At specified time, sends single reminder to mod chat
+  - Mods can manually resolve with "Mark Resolved" button
+- **User Response Tracking**: Automatically resolves check when user responds
+- **Message Reference**: Can flag from specific messages to document concerns
+- **Persistent Storage**: All checks logged for historical record and auditing
+
 ### Admin Commands (Administrator Permission Required)
 - `/admindata list` - View all users with no-contact data, ranked by streak length
 - `/admindata user @user` - View detailed data for a specific user
@@ -153,11 +173,13 @@ honey-bear-bot/
 │   ├── affirmation.js    # Affirmation sharing
 │   ├── affirmationstats.js # Affirmation analytics
 │   ├── nocontact.js      # No-contact tracking system
+│   ├── check.js          # Wellness check-in command
 │   └── admindata.js      # Admin database management
 ├── utils/                # Utility functions
 │   ├── gifUtils.js       # GIF handling utilities
 │   ├── userDataManager.js # PostgreSQL database manager
-│   └── milestoneChecker.js # Automatic milestone detection
+│   ├── milestoneChecker.js # Automatic milestone detection
+│   └── wellnessCheckManager.js # Wellness check monitoring
 ├── gifs/                 # GIF storage folder
 │   ├── bonk/             # Bonk GIFs
 │   ├── hug/              # Hug GIFs
@@ -166,7 +188,7 @@ honey-bear-bot/
 ├── bot.js                # Main bot file with HTTP server
 ├── deploy-commands.js    # Command deployment script
 ├── config.json           # Configuration file
-└── package.json          # Dependencies (includes pg, luxon)
+└── package.json          # Dependencies (includes pg, luxon, uuid)
 ```
 
 ## Database Schema
@@ -193,6 +215,24 @@ CREATE TABLE affirmations (
     affirmation TEXT NOT NULL,
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE wellness_checks (
+    id SERIAL PRIMARY KEY,
+    check_id VARCHAR(255) UNIQUE NOT NULL,
+    user_id VARCHAR(255) NOT NULL,
+    flagged_by VARCHAR(255) NOT NULL,
+    message_id VARCHAR(255),
+    note TEXT,
+    auto_dm BOOLEAN NOT NULL DEFAULT false,
+    reminder_time TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    resolved_at TIMESTAMP,
+    resolved_by VARCHAR(255),
+    user_responded BOOLEAN DEFAULT false,
+    response_text TEXT,
+    dms_disabled BOOLEAN DEFAULT false,
+    status VARCHAR(50) DEFAULT 'pending'
+);
 ```
 
 **user_data table** stores JSONB with fields like:
@@ -206,6 +246,13 @@ CREATE TABLE affirmations (
 **affirmations table** tracks:
 - User's positive affirmations and thoughts
 - Timestamp for tracking affirmation history
+
+**wellness_checks table** tracks:
+- Flagged user wellness checks with unique check IDs
+- Auto-DM vs reminder mode configuration
+- Response tracking and resolution status
+- DM delivery failures for users with disabled DMs
+- Historical record of all wellness check interactions
 
 ## Deployment
 

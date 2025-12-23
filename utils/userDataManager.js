@@ -52,6 +52,39 @@ class UserDataManager {
                 ON affirmations(user_id, timestamp DESC)
             `);
 
+            // Create the wellness_checks table if it doesn't exist
+            await this.pool.query(`
+                CREATE TABLE IF NOT EXISTS wellness_checks (
+                    id SERIAL PRIMARY KEY,
+                    check_id VARCHAR(255) UNIQUE NOT NULL,
+                    user_id VARCHAR(255) NOT NULL,
+                    flagged_by VARCHAR(255) NOT NULL,
+                    message_id VARCHAR(255),
+                    note TEXT,
+                    auto_dm BOOLEAN NOT NULL DEFAULT false,
+                    reminder_time TIMESTAMP NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    resolved_at TIMESTAMP,
+                    resolved_by VARCHAR(255),
+                    user_responded BOOLEAN DEFAULT false,
+                    response_text TEXT,
+                    dms_disabled BOOLEAN DEFAULT false,
+                    status VARCHAR(50) DEFAULT 'pending'
+                )
+            `);
+
+            // Create index for faster lookups by status and reminder_time
+            await this.pool.query(`
+                CREATE INDEX IF NOT EXISTS idx_wellness_checks_status_time
+                ON wellness_checks(status, reminder_time)
+            `);
+
+            // Create index for user lookups
+            await this.pool.query(`
+                CREATE INDEX IF NOT EXISTS idx_wellness_checks_user_id
+                ON wellness_checks(user_id)
+            `);
+
             console.log('Database initialized successfully');
         } catch (error) {
             console.error('Error initializing database:', error);
@@ -223,6 +256,143 @@ class UserDataManager {
         } catch (error) {
             console.error('Error getting recent affirmations:', error);
             return [];
+        }
+    }
+
+    // Wellness checks methods
+    async createWellnessCheck(checkId, userId, flaggedBy, messageId, note, autoDm, reminderTime) {
+        try {
+            const result = await this.pool.query(
+                `INSERT INTO wellness_checks (check_id, user_id, flagged_by, message_id, note, auto_dm, reminder_time, status)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')
+                 RETURNING *`,
+                [checkId, userId, flaggedBy, messageId, note, autoDm, reminderTime]
+            );
+            return result.rows[0];
+        } catch (error) {
+            console.error('Error creating wellness check:', error);
+            return null;
+        }
+    }
+
+    async getWellnessCheck(checkId) {
+        try {
+            const result = await this.pool.query(
+                'SELECT * FROM wellness_checks WHERE check_id = $1',
+                [checkId]
+            );
+            return result.rows[0] || null;
+        } catch (error) {
+            console.error('Error getting wellness check:', error);
+            return null;
+        }
+    }
+
+    async getPendingWellnessChecks() {
+        try {
+            const result = await this.pool.query(
+                `SELECT * FROM wellness_checks 
+                 WHERE status = 'pending' AND reminder_time <= NOW()
+                 ORDER BY reminder_time ASC`
+            );
+            return result.rows;
+        } catch (error) {
+            console.error('Error getting pending wellness checks:', error);
+            return [];
+        }
+    }
+
+    async getActiveWellnessChecks(userId) {
+        try {
+            const result = await this.pool.query(
+                `SELECT * FROM wellness_checks 
+                 WHERE user_id = $1 AND status = 'pending'
+                 ORDER BY created_at DESC`,
+                [userId]
+            );
+            return result.rows;
+        } catch (error) {
+            console.error('Error getting active wellness checks:', error);
+            return [];
+        }
+    }
+
+    async updateWellnessCheckResponse(checkId, userResponded, responseText = null) {
+        try {
+            const result = await this.pool.query(
+                `UPDATE wellness_checks 
+                 SET user_responded = $2, response_text = $3, resolved_at = NOW(), status = 'resolved'
+                 WHERE check_id = $1
+                 RETURNING *`,
+                [checkId, userResponded, responseText]
+            );
+            return result.rows[0];
+        } catch (error) {
+            console.error('Error updating wellness check response:', error);
+            return null;
+        }
+    }
+
+    async resolveWellnessCheck(checkId, resolvedBy, reason = 'manual') {
+        try {
+            const result = await this.pool.query(
+                `UPDATE wellness_checks 
+                 SET status = 'resolved', resolved_at = NOW(), resolved_by = $2
+                 WHERE check_id = $1
+                 RETURNING *`,
+                [checkId, resolvedBy]
+            );
+            return result.rows[0];
+        } catch (error) {
+            console.error('Error resolving wellness check:', error);
+            return null;
+        }
+    }
+
+    async markDMsDisabled(checkId) {
+        try {
+            const result = await this.pool.query(
+                `UPDATE wellness_checks 
+                 SET dms_disabled = true, status = 'dms_disabled'
+                 WHERE check_id = $1
+                 RETURNING *`,
+                [checkId]
+            );
+            return result.rows[0];
+        } catch (error) {
+            console.error('Error marking DMs disabled:', error);
+            return null;
+        }
+    }
+
+    async getWellnessChecksByUser(userId) {
+        try {
+            const result = await this.pool.query(
+                `SELECT * FROM wellness_checks 
+                 WHERE user_id = $1
+                 ORDER BY created_at DESC`,
+                [userId]
+            );
+            return result.rows;
+        } catch (error) {
+            console.error('Error getting wellness checks by user:', error);
+            return [];
+        }
+    }
+
+    async updateReminderSent(checkId) {
+        try {
+            const result = await this.pool.query(
+                `UPDATE wellness_checks 
+                 SET status = 'reminder_sent'
+                 WHERE check_id = $1
+                 RETURNING *`,
+                [checkId]
+            );
+            return result.rows[0];
+        } catch (error) {
+            console.error('Error updating reminder sent status:', error);
+            return null;
         }
     }
 }

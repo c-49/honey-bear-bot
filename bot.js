@@ -2,13 +2,17 @@ const { Client, GatewayIntentBits, Collection, ActionRowBuilder, ButtonBuilder, 
 const fs = require('fs');
 const path = require('path');
 const MilestoneChecker = require('./utils/milestoneChecker');
+const WellnessCheckManager = require('./utils/wellnessCheckManager');
+const userDataManager = require('./utils/userDataManager');
 require('dotenv').config();
 
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.GuildMembers
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.DirectMessages,
+        GatewayIntentBits.MessageContent
     ]
 });
 
@@ -38,159 +42,205 @@ client.once('ready', () => {
     // Start automatic milestone checking
     const milestoneChecker = new MilestoneChecker(client);
     milestoneChecker.startDailyCheck();
+
+    // Start wellness check manager
+    const wellnessCheckManager = new WellnessCheckManager(client);
+    wellnessCheckManager.start();
+    client.wellnessCheckManager = wellnessCheckManager;
 });
 
 client.on('interactionCreate', async interaction => {
     // Handle button interactions
     if (interaction.isButton()) {
-        if (interaction.customId === 'welcome_gif') {
-            const { getRandomGif } = require('./utils/gifUtils');
-            const { AttachmentBuilder } = require('discord.js');
+        const customId = interaction.customId;
 
-            try {
-                // Defer the reply immediately to prevent timeout
-                await interaction.deferReply();
+        try {
+            switch (true) {
+                case customId === 'welcome_gif': {
+                    const { getRandomGif } = require('./utils/gifUtils');
+                    const { AttachmentBuilder } = require('discord.js');
 
-                const gifPath = getRandomGif('./gifs/welcome');
+                    // Defer the reply immediately to prevent timeout
+                    await interaction.deferReply();
 
-                if (!gifPath) {
-                    return interaction.editReply({
-                        content: 'No welcome GIFs found!'
-                    });
-                }
+                    const gifPath = getRandomGif('./gifs/welcome');
 
-                // Get the new user mention from the original message
-                const originalMessage = interaction.message;
-                const newUserMention = originalMessage.content.match(/<@!?\d+>/)?.[0] || '';
+                    if (!gifPath) {
+                        return interaction.editReply({
+                            content: 'No welcome GIFs found!'
+                        });
+                    }
 
-                const attachment = new AttachmentBuilder(gifPath);
-                await interaction.editReply({
-                    content: `${interaction.user} welcomes you${newUserMention ? ` ${newUserMention}` : ''}! 🎉`,
-                    files: [attachment]
-                });
+                    // Get the new user mention from the original message
+                    const originalMessage = interaction.message;
+                    const newUserMention = originalMessage.content.match(/<@!?\d+>/)?.[0] || '';
 
-                console.log(`${interaction.user.tag} sent a welcome GIF`);
-            } catch (error) {
-                console.error('Error sending welcome GIF:', error);
-                // Only try to respond if we haven't replied yet
-                if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({
-                        content: 'There was an error sending the welcome GIF!',
-                        flags: 64 // ephemeral flag
-                    }).catch(() => {});
-                } else {
+                    const attachment = new AttachmentBuilder(gifPath);
                     await interaction.editReply({
-                        content: 'There was an error sending the welcome GIF!'
-                    }).catch(() => {});
+                        content: `${interaction.user} welcomes you${newUserMention ? ` ${newUserMention}` : ''}! 🎉`,
+                        files: [attachment]
+                    });
+
+                    console.log(`${interaction.user.tag} sent a welcome GIF`);
+                    break;
                 }
-            }
-        } else if (interaction.customId.startsWith('mood_reply_')) {
-            // Handle mood reply button
-            const userId = interaction.customId.replace('mood_reply_', '');
-            const message = interaction.message;
 
-            try {
-                // Check if thread already exists
-                let thread;
-                let isNewThread = false;
-
-                if (message.hasThread) {
-                    thread = message.thread;
-                } else {
-                    // Get the user from the message to get their display name
-                    const mentionMatch = message.content.match(/<@!?(\d+)>/);
-                    let userName = 'user';
-                    if (mentionMatch) {
-                        try {
-                            const user = await interaction.client.users.fetch(mentionMatch[1]);
-                            userName = user.username;
-                        } catch (e) {
-                            console.error('Could not fetch user for thread name:', e);
-                        }
+                case customId.startsWith('resolve_check_'): {
+                    // Handle wellness check resolution
+                    const checkId = customId.replace('resolve_check_', '');
+                    const MOD_ROLE_IDS = ['1368995164470902967', '1294078699687247882', '1359466436212559933'];
+                    
+                    // Verify the user is a mod
+                    const isMod = MOD_ROLE_IDS.some(roleId => interaction.member.roles.cache.has(roleId));
+                    
+                    if (!isMod) {
+                        return interaction.reply({
+                            content: '❌ Only moderators can resolve wellness checks.',
+                            ephemeral: true
+                        });
                     }
 
-                    // Create a new thread
-                    thread = await message.startThread({
-                        name: `Support for ${userName}`,
-                        autoArchiveDuration: 1440, // 24 hours
-                        reason: 'Mood check-in support thread'
+                    // Resolve the check
+                    const resolved = await userDataManager.resolveWellnessCheck(checkId, interaction.user.id);
+                    
+                    if (resolved) {
+                        await interaction.reply({
+                            content: `✅ Wellness check \`${checkId}\` has been marked as resolved.`,
+                            ephemeral: true
+                        });
+
+                        // Update the original embed
+                        const embed = interaction.message.embeds[0];
+                        if (embed) {
+                            const updatedEmbed = embed.toJSON();
+                            updatedEmbed.color = 0x00FF00;
+                            updatedEmbed.title = '✅ Wellness Check - Resolved';
+                            
+                            await interaction.message.edit({
+                                embeds: [updatedEmbed],
+                                components: []
+                            }).catch(err => console.error('Error updating message:', err));
+                        }
+                    } else {
+                        await interaction.reply({
+                            content: '❌ Could not resolve the wellness check.',
+                            ephemeral: true
+                        });
+                    }
+                    break;
+                }
+
+                case customId.startsWith('mood_reply_'): {
+                    // Handle mood reply button
+                    const userId = customId.replace('mood_reply_', '');
+                    const message = interaction.message;
+
+                    // Check if thread already exists
+                    let thread;
+                    let isNewThread = false;
+
+                    if (message.hasThread) {
+                        thread = message.thread;
+                    } else {
+                        // Get the user from the message to get their display name
+                        const mentionMatch = message.content.match(/<@!?(\d+)>/);
+                        let userName = 'user';
+                        if (mentionMatch) {
+                            try {
+                                const user = await interaction.client.users.fetch(mentionMatch[1]);
+                                userName = user.username;
+                            } catch (e) {
+                                console.error('Could not fetch user for thread name:', e);
+                            }
+                        }
+
+                        // Create a new thread
+                        thread = await message.startThread({
+                            name: `Support for ${userName}`,
+                            autoArchiveDuration: 1440, // 24 hours
+                            reason: 'Mood check-in support thread'
+                        });
+                        isNewThread = true;
+                    }
+
+                    // Only send initial message if it's a new thread
+                    if (isNewThread) {
+                        await thread.send(`${interaction.user} is reaching out to offer support 💙`);
+                    }
+
+                    // Acknowledge the button click
+                    await interaction.reply({
+                        content: isNewThread ? `Thread created! You can now chat in the thread to offer support.` : `You can chat in the existing thread to offer support.`,
+                        flags: 64 // ephemeral
                     });
-                    isNewThread = true;
+
+                    console.log(`${interaction.user.tag} reached out in mood thread for user ${userId}`);
+                    break;
                 }
 
-                // Only send initial message if it's a new thread
-                if (isNewThread) {
-                    await thread.send(`${interaction.user} is reaching out to offer support 💙`);
+                case customId.startsWith('affirmation_reply_'): {
+                    // Handle affirmation reply button
+                    const userId = customId.replace('affirmation_reply_', '');
+                    const message = interaction.message;
+
+                    // Check if thread already exists
+                    let thread;
+                    let isNewThread = false;
+
+                    if (message.hasThread) {
+                        thread = message.thread;
+                    } else {
+                        // Get the user from the message to get their display name
+                        const mentionMatch = message.content.match(/<@!?(\d+)>/);
+                        let userName = 'user';
+                        if (mentionMatch) {
+                            try {
+                                const user = await interaction.client.users.fetch(mentionMatch[1]);
+                                userName = user.username;
+                            } catch (e) {
+                                console.error('Could not fetch user for thread name:', e);
+                            }
+                        }
+
+                        // Create a new thread
+                        thread = await message.startThread({
+                            name: `Support for ${userName}`,
+                            autoArchiveDuration: 1440, // 24 hours
+                            reason: 'Affirmation support thread'
+                        });
+                        isNewThread = true;
+                    }
+
+                    // Only send initial message if it's a new thread
+                    if (isNewThread) {
+                        await thread.send(`${interaction.user} is joining to support your affirmation 💙`);
+                    }
+
+                    // Acknowledge the button click
+                    await interaction.reply({
+                        content: isNewThread ? `Thread created! You can now chat in the thread to offer support.` : `You can chat in the existing thread to offer support.`,
+                        flags: 64 // ephemeral
+                    });
+
+                    console.log(`${interaction.user.tag} reached out in affirmation thread for user ${userId}`);
+                    break;
                 }
-
-                // Acknowledge the button click
+            }
+        } catch (error) {
+            console.error('Error handling button interaction:', error);
+            // Only try to respond if we haven't replied yet
+            if (!interaction.replied && !interaction.deferred) {
                 await interaction.reply({
-                    content: isNewThread ? `Thread created! You can now chat in the thread to offer support.` : `You can chat in the existing thread to offer support.`,
-                    flags: 64 // ephemeral
-                });
-
-                console.log(`${interaction.user.tag} reached out in mood thread for user ${userId}`);
-            } catch (error) {
-                console.error('Error creating mood thread:', error);
-                await interaction.reply({
-                    content: 'There was an error creating the support thread.',
-                    flags: 64 // ephemeral
+                    content: 'There was an error handling this interaction!',
+                    flags: 64 // ephemeral flag
                 }).catch(() => {});
-            }
-        } else if (interaction.customId.startsWith('affirmation_reply_')) {
-            // Handle affirmation reply button
-            const userId = interaction.customId.replace('affirmation_reply_', '');
-            const message = interaction.message;
-
-            try {
-                // Check if thread already exists
-                let thread;
-                let isNewThread = false;
-
-                if (message.hasThread) {
-                    thread = message.thread;
-                } else {
-                    // Get the user from the message to get their display name
-                    const mentionMatch = message.content.match(/<@!?(\d+)>/);
-                    let userName = 'user';
-                    if (mentionMatch) {
-                        try {
-                            const user = await interaction.client.users.fetch(mentionMatch[1]);
-                            userName = user.username;
-                        } catch (e) {
-                            console.error('Could not fetch user for thread name:', e);
-                        }
-                    }
-
-                    // Create a new thread
-                    thread = await message.startThread({
-                        name: `Support for ${userName}`,
-                        autoArchiveDuration: 1440, // 24 hours
-                        reason: 'Affirmation support thread'
-                    });
-                    isNewThread = true;
-                }
-
-                // Only send initial message if it's a new thread
-                if (isNewThread) {
-                    await thread.send(`${interaction.user} is joining to support your affirmation 💙`);
-                }
-
-                // Acknowledge the button click
-                await interaction.reply({
-                    content: isNewThread ? `Thread created! You can now chat in the thread to offer support.` : `You can chat in the existing thread to offer support.`,
-                    flags: 64 // ephemeral
-                });
-
-                console.log(`${interaction.user.tag} reached out in affirmation thread for user ${userId}`);
-            } catch (error) {
-                console.error('Error creating affirmation thread:', error);
-                await interaction.reply({
-                    content: 'There was an error creating the support thread.',
-                    flags: 64 // ephemeral
+            } else {
+                await interaction.editReply({
+                    content: 'There was an error handling this interaction!'
                 }).catch(() => {});
             }
         }
+
         return;
     }
 
@@ -217,6 +267,35 @@ client.on('interactionCreate', async interaction => {
             await interaction.followUp(reply);
         } else {
             await interaction.reply(reply);
+        }
+    }
+});
+
+client.on('messageCreate', async message => {
+    // Ignore bot messages
+    if (message.author.bot) return;
+
+    // Check if message is a DM
+    if (message.isDMChannel()) {
+        try {
+            // Check if user has an active wellness check
+            const activeChecks = await userDataManager.getActiveWellnessChecks(message.author.id);
+            
+            if (activeChecks.length > 0) {
+                const check = activeChecks[0]; // Get most recent check
+                
+                // Handle the user response
+                if (client.wellnessCheckManager) {
+                    await client.wellnessCheckManager.handleUserResponse(message.author.id, message.content);
+                }
+                
+                // Send acknowledgment to user
+                await message.reply({
+                    content: '✅ Thanks for letting us know you\'re okay! We\'ve noted your response. Take care! 💙'
+                });
+            }
+        } catch (error) {
+            console.error('Error handling DM for wellness check:', error);
         }
     }
 });
