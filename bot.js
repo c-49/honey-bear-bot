@@ -56,6 +56,47 @@ client.on('interactionCreate', async interaction => {
 
         try {
             switch (true) {
+                case customId.startsWith('wellness_check_ok_'): {
+                    // Handle wellness check confirmation button
+                    const checkId = customId.replace('wellness_check_ok_', '');
+                    const REPORT_CHANNEL_ID = '1453170052462542879';
+
+                    try {
+                        // Update wellness check as user responded
+                        const resolved = await userDataManager.resolveWellnessCheck(checkId, interaction.user.id, 'user_clicked_button');
+                        
+                        // Acknowledge the button click in DM
+                        await interaction.reply({
+                            content: '✅ Thanks for letting us know you\'re okay! Take care! 💙',
+                            ephemeral: true
+                        });
+
+                        // Report to mod chat
+                        if (resolved) {
+                            const reportChannel = await interaction.client.channels.fetch(REPORT_CHANNEL_ID);
+                            const embed = new EmbedBuilder()
+                                .setColor('#00FF00')
+                                .setTitle('✅ Wellness Check - User Responded')
+                                .addFields(
+                                    { name: 'User', value: `<@${interaction.user.id}>`, inline: true },
+                                    { name: 'Status', value: 'Confirmed', inline: true },
+                                    { name: 'Response', value: 'User clicked "I\'m Okay" button' }
+                                )
+                                .setFooter({ text: `Check ID: ${checkId}` })
+                                .setTimestamp();
+
+                            await reportChannel.send({ embeds: [embed] });
+                        }
+                    } catch (error) {
+                        console.error('Error handling wellness check button:', error);
+                        await interaction.reply({
+                            content: '❌ There was an error processing your response.',
+                            ephemeral: true
+                        }).catch(() => {});
+                    }
+                    break;
+                }
+
                 case customId === 'welcome_gif': {
                     const { getRandomGif } = require('./utils/gifUtils');
                     const { AttachmentBuilder } = require('discord.js');
@@ -267,35 +308,6 @@ client.on('interactionCreate', async interaction => {
             await interaction.followUp(reply);
         } else {
             await interaction.reply(reply);
-        }
-    }
-});
-
-client.on('messageCreate', async message => {
-    // Ignore bot messages
-    if (message.author.bot) return;
-
-    // Check if message is a DM
-    if (message.channel.isDMBased()) {
-        try {
-            // Check if user has an active wellness check
-            const activeChecks = await userDataManager.getActiveWellnessChecks(message.author.id);
-            
-            if (activeChecks.length > 0) {
-                const check = activeChecks[0]; // Get most recent check
-                
-                // Handle the user response
-                if (client.wellnessCheckManager) {
-                    await client.wellnessCheckManager.handleUserResponse(message.author.id, message.content);
-                }
-                
-                // Send acknowledgment to user
-                await message.reply({
-                    content: '✅ Thanks for letting us know you\'re okay! We\'ve noted your response. Take care! 💙'
-                });
-            }
-        } catch (error) {
-            console.error('Error handling DM for wellness check:', error);
         }
     }
 });

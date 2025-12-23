@@ -13,6 +13,9 @@ function calculateReminderTime(timeInput) {
     const now = new Date();
     
     switch (timeInput) {
+        case 'now':
+            // Send immediately (subtract a few seconds so it gets picked up right away)
+            return new Date(now.getTime() - 5 * 1000);
         case '1h':
             return new Date(now.getTime() + 1 * 60 * 60 * 1000);
         case '3h':
@@ -80,6 +83,7 @@ module.exports = {
                 .setDescription('When to check: 1h, 3h, 6h, 24h, or custom date (YYYY-MM-DD)')
                 .setRequired(true)
                 .addChoices(
+                    { name: 'Now (testing)', value: 'now' },
                     { name: '1 hour', value: '1h' },
                     { name: '3 hours', value: '3h' },
                     { name: '6 hours', value: '6h' },

@@ -321,7 +321,7 @@ class UserDataManager {
         try {
             const result = await this.pool.query(
                 `UPDATE wellness_checks 
-                 SET user_responded = $2, response_text = $3, resolved_at = NOW(), status = 'resolved'
+                 SET user_responded = $2, response_text = $3, resolved_at = NOW(), status = 'done'
                  WHERE check_id = $1
                  RETURNING *`,
                 [checkId, userResponded, responseText]
@@ -337,7 +337,7 @@ class UserDataManager {
         try {
             const result = await this.pool.query(
                 `UPDATE wellness_checks 
-                 SET status = 'resolved', resolved_at = NOW(), resolved_by = $2
+                 SET status = 'done', resolved_at = NOW(), resolved_by = $2
                  WHERE check_id = $1
                  RETURNING *`,
                 [checkId, resolvedBy]

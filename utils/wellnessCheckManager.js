@@ -16,9 +16,6 @@ class WellnessCheckManager {
         // Check for reminders every minute
         this.reminderInterval = setInterval(() => this.checkReminders(), 60 * 1000);
         
-        // Start DM monitoring for existing pending checks
-        this.startDMMonitoring();
-        
         console.log('Wellness Check Manager started');
     }
 
@@ -52,6 +49,20 @@ class WellnessCheckManager {
                 // Mark as reminder sent
                 await userDataManager.updateReminderSent(check.check_id);
             }
+
+            // Check for auto-DM timeouts (24 hours without response)
+            const allPendingChecks = await userDataManager.getPendingWellnessChecks();
+            for (const check of allPendingChecks) {
+                if (check.auto_dm && check.status === 'reminder_sent' && !check.user_responded) {
+                    const createdTime = new Date(check.created_at).getTime();
+                    const elapsedTime = Date.now() - createdTime;
+                    
+                    // If 24 hours have passed and no response, timeout
+                    if (elapsedTime > DM_CHECK_DURATION) {
+                        await this.handleAutoCheckTimeout(check);
+                    }
+                }
+            }
         } catch (error) {
             console.error('Error checking reminders:', error);
         }
@@ -65,11 +76,19 @@ class WellnessCheckManager {
             const dmEmbed = new EmbedBuilder()
                 .setColor('#FFB6C1')
                 .setTitle('🐻 Wellness Check-In')
-                .setDescription('Hi there! We just wanted to check in and see how you\'re doing. Reply to this message to let us know you\'re okay!')
+                .setDescription('Hi there! We just wanted to check in and see how you\'re doing. Click the button below to let us know you\'re okay!')
                 .setFooter({ text: `Check ID: ${check.check_id}` })
                 .setTimestamp();
 
-            await user.send({ embeds: [dmEmbed] });
+            const okayButton = new ButtonBuilder()
+                .setCustomId(`wellness_check_ok_${check.check_id}`)
+                .setLabel('I\'m Okay ✨')
+                .setStyle(ButtonStyle.Success);
+
+            const row = new ActionRowBuilder()
+                .addComponents(okayButton);
+
+            await user.send({ embeds: [dmEmbed], components: [row] });
         } catch (error) {
             console.error(`Error sending DM to user ${check.user_id}:`, error);
             // Mark DMs as disabled
@@ -115,33 +134,8 @@ class WellnessCheckManager {
         }
     }
 
-    // Start DM monitoring for auto-DM checks
-    startDMMonitoring() {
-        this.dmMonitorInterval = setInterval(() => this.monitorDMChecks(), DM_CHECK_INTERVAL);
-    }
-
-    // Monitor active DM checks and handle responses
-    async monitorDMChecks() {
-        try {
-            // Get all pending auto-DM checks
-            const checks = await userDataManager.getPendingWellnessChecks();
-            const autoDMChecks = checks.filter(c => c.auto_dm && c.status === 'pending');
-
-            for (const check of autoDMChecks) {
-                const elapsedTime = Date.now() - new Date(check.created_at).getTime();
-                
-                // If 24 hours have passed and no response, timeout
-                if (elapsedTime > DM_CHECK_DURATION) {
-                    await this.handleDMTimeout(check);
-                }
-            }
-        } catch (error) {
-            console.error('Error monitoring DM checks:', error);
-        }
-    }
-
-    // Handle DM timeout (24 hours passed without response)
-    async handleDMTimeout(check) {
+    // Handle timeout for auto-DM checks (24 hours passed without response)
+    async handleAutoCheckTimeout(check) {
         try {
             // Resolve the check as timed out
             await userDataManager.resolveWellnessCheck(check.check_id, 'system', 'timeout');
