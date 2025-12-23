@@ -163,9 +163,13 @@ module.exports = {
                     });
                 }
                 reminderTime = calculateReminderTime(customDate);
+            } else if (timeInput === 'now') {
+                reminderTime = calculateReminderTime('now');
             } else {
                 reminderTime = calculateReminderTime(timeInput);
             }
+
+            console.log(`Reminder time calculation - Input: ${timeInput}, Result:`, reminderTime);
 
             if (!reminderTime) {
                 return interaction.editReply({
