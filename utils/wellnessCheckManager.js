@@ -1,7 +1,7 @@
 const userDataManager = require('./userDataManager');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
-const MOD_CHAT_ID = '1294668387322171475';
+const MOD_CHAT_ID = '1453170052462542879';
 const DM_CHECK_INTERVAL = 60 * 60 * 1000; // 1 hour in milliseconds
 const DM_CHECK_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
@@ -41,14 +41,39 @@ class WellnessCheckManager {
                 // Skip checks that have already been sent a reminder
                 if (check.status === 'reminder_sent') continue;
 
-                // Send reminder to mod chat
-                await this.sendReminderToModChat(check);
+                // If autoDM is enabled, send DM instead of reminder
+                if (check.auto_dm) {
+                    await this.sendAutoCheckDM(check);
+                } else {
+                    // Send reminder to mod chat
+                    await this.sendReminderToModChat(check);
+                }
 
                 // Mark as reminder sent
                 await userDataManager.updateReminderSent(check.check_id);
             }
         } catch (error) {
             console.error('Error checking reminders:', error);
+        }
+    }
+
+    // Send auto-DM check to user
+    async sendAutoCheckDM(check) {
+        try {
+            const user = await this.client.users.fetch(check.user_id);
+            
+            const dmEmbed = new EmbedBuilder()
+                .setColor('#FFB6C1')
+                .setTitle('🐻 Wellness Check-In')
+                .setDescription('Hi there! We just wanted to check in and see how you\'re doing. Reply to this message to let us know you\'re okay!')
+                .setFooter({ text: `Check ID: ${check.check_id}` })
+                .setTimestamp();
+
+            await user.send({ embeds: [dmEmbed] });
+        } catch (error) {
+            console.error(`Error sending DM to user ${check.user_id}:`, error);
+            // Mark DMs as disabled
+            await userDataManager.markDMsDisabled(check.check_id);
         }
     }
 

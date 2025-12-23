@@ -276,7 +276,7 @@ client.on('messageCreate', async message => {
     if (message.author.bot) return;
 
     // Check if message is a DM
-    if (message.isDMChannel()) {
+    if (message.channel.isDMBased()) {
         try {
             // Check if user has an active wellness check
             const activeChecks = await userDataManager.getActiveWellnessChecks(message.author.id);

@@ -4,7 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 
 // Constants
 const MOD_ROLE_IDS = ['1368995164470902967', '1294078699687247882', '1359466436212559933'];
-const MOD_CHAT_ID = '1294668387322171475';
+const MOD_CHAT_ID = '1453170052462542879';
 const DM_CHECK_INTERVAL = 1; // Check every 1 hour
 const DM_CHECK_DURATION = 24; // Check for 24 hours
 
@@ -187,10 +187,7 @@ module.exports = {
                 });
             }
 
-            // If autoDM is enabled, send DM to user
-            if (autoDM) {
-                await sendWellnessCheckDM(interaction.client, targetUserId, checkId);
-            }
+            // Note: Auto-DM will be sent at the reminder time by WellnessCheckManager
 
             // Notify mod chat
             await notifyModChat(interaction.client, wellnessCheck, interaction.user, autoDM);
@@ -207,26 +204,6 @@ module.exports = {
         }
     }
 };
-
-// Helper function to send wellness check DM
-async function sendWellnessCheckDM(client, userId, checkId) {
-    try {
-        const user = await client.users.fetch(userId);
-        
-        const dmEmbed = new EmbedBuilder()
-            .setColor('#FFB6C1')
-            .setTitle('🐻 Wellness Check-In')
-            .setDescription('Hi there! We just wanted to check in and see how you\'re doing. Reply to this message to let us know you\'re okay!')
-            .setFooter({ text: `Check ID: ${checkId}` })
-            .setTimestamp();
-
-        await user.send({ embeds: [dmEmbed] });
-    } catch (error) {
-        console.error(`Error sending DM to user ${userId}:`, error);
-        // Mark DMs as disabled
-        await userDataManager.markDMsDisabled(checkId);
-    }
-}
 
 // Helper function to notify mod chat
 async function notifyModChat(client, wellnessCheck, flaggedBy, autoDM) {
