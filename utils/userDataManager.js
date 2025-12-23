@@ -335,6 +335,7 @@ class UserDataManager {
 
     async resolveWellnessCheck(checkId, resolvedBy, reason = 'manual') {
         try {
+            console.log(`Resolving wellness check: ${checkId} by ${resolvedBy}`);
             const result = await this.pool.query(
                 `UPDATE wellness_checks 
                  SET status = 'done', resolved_at = NOW(), resolved_by = $2
@@ -342,6 +343,7 @@ class UserDataManager {
                  RETURNING *`,
                 [checkId, resolvedBy]
             );
+            console.log(`Wellness check update result:`, result.rows[0]);
             return result.rows[0];
         } catch (error) {
             console.error('Error resolving wellness check:', error);

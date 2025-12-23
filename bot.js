@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, Collection, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const MilestoneChecker = require('./utils/milestoneChecker');
@@ -71,7 +71,7 @@ client.on('interactionCreate', async interaction => {
                             ephemeral: true
                         });
 
-                        // Report to mod chat
+                        // Report to mod chat and try to update original message
                         if (resolved) {
                             const reportChannel = await interaction.client.channels.fetch(REPORT_CHANNEL_ID);
                             const embed = new EmbedBuilder()
@@ -86,6 +86,30 @@ client.on('interactionCreate', async interaction => {
                                 .setTimestamp();
 
                             await reportChannel.send({ embeds: [embed] });
+
+                            // Try to find and update the original wellness check message in the report channel
+                            try {
+                                const messages = await reportChannel.messages.fetch({ limit: 50 });
+                                const originalMessage = messages.find(msg => 
+                                    msg.embeds.length > 0 && 
+                                    msg.embeds[0].footer?.text?.includes(checkId) &&
+                                    (msg.embeds[0].title?.includes('Wellness Check') || msg.embeds[0].title?.includes('Flagged'))
+                                );
+
+                                if (originalMessage) {
+                                    const updatedEmbed = originalMessage.embeds[0].toJSON();
+                                    updatedEmbed.color = 0x00FF00;
+                                    updatedEmbed.title = '✅ Wellness Check - Resolved';
+                                    updatedEmbed.fields = updatedEmbed.fields || [];
+                                    
+                                    await originalMessage.edit({
+                                        embeds: [updatedEmbed],
+                                        components: []
+                                    });
+                                }
+                            } catch (updateError) {
+                                console.error('Could not update original wellness check message:', updateError);
+                            }
                         }
                     } catch (error) {
                         console.error('Error handling wellness check button:', error);
