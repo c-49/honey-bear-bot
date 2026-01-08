@@ -168,11 +168,12 @@ class UserDataManager {
             }
             userData.gifStats[statType]++;
             
-            await this.pool.query(
+            const result = await this.pool.query(
                 `INSERT INTO user_data (user_id, data) VALUES ($1, $2)
                  ON CONFLICT (user_id) DO UPDATE SET data = $2`,
                 [userId, JSON.stringify(userData)]
             );
+            console.log(`Incremented ${statType} for user ${userId}, new value: ${userData.gifStats[statType]}`);
         } catch (error) {
             console.error('Error incrementing gif stat:', error);
         }
