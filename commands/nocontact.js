@@ -1,8 +1,18 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, StringSelectMenuBuilder, ActionRowBuilder } = require('discord.js');
 const { DateTime } = require('luxon');
 const userDataManager = require('../utils/userDataManager');
 
 const MILESTONE_CHANNEL_ID = '1420968791470506125';
+const TIMEZONE = 'America/New_York';
+
+const MILESTONES = [
+    { days: 1, emoji: '🎉', name: '1 full day', message: 'has completed **1 full day** of no-contact! First milestone reached!' },
+    { days: 7, emoji: '🌟', name: '1 week', message: 'has completed **1 week** of no-contact! A full week strong!' },
+    { days: 30, emoji: '🏆', name: '1 month', message: 'has completed **1 month** of no-contact! Incredible dedication!' },
+    { days: 90, emoji: '💎', name: '3 months', message: 'has completed **3 months** of no-contact! Diamond strength!' },
+    { days: 180, emoji: '🔥', name: '6 months', message: 'has completed **6 months** of no-contact! Half a year of growth!' },
+    { days: 365, emoji: '👑', name: '1 full year', message: 'has completed **1 FULL YEAR** of no-contact! Absolute legend!' }
+];
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -12,12 +22,6 @@ module.exports = {
             subcommand
                 .setName('set')
                 .setDescription('Set your no-contact start date')
-                .addStringOption(option =>
-                    option
-                        .setName('date')
-                        .setDescription('Start date in MM-DD-YYYY format (optional, defaults to today)')
-                        .setRequired(false)
-                )
         )
         .addSubcommand(subcommand =>
             subcommand
@@ -48,47 +52,129 @@ module.exports = {
     },
 
     async handleSet(interaction, userId) {
-        const dateInput = interaction.options.getString('date');
-        let startDate;
+        const yearMenu = new StringSelectMenuBuilder()
+            .setCustomId(`nocontact_year_${userId}`)
+            .setPlaceholder('Select a year')
+            .addOptions(this.getYearOptions());
 
-        if (dateInput) {
-            // Parse MM-DD-YYYY format
-            const dateRegex = /^(\d{2})-(\d{2})-(\d{4})$/;
-            const match = dateInput.match(dateRegex);
+        const row = new ActionRowBuilder().addComponents(yearMenu);
 
-            if (!match) {
-                return interaction.reply({
-                    content: 'Invalid date format! Please use MM-DD-YYYY format.',
-                    ephemeral: false
-                });
-            }
-
-            const [, month, day, year] = match;
-            startDate = DateTime.fromObject({
-                year: parseInt(year),
-                month: parseInt(month),
-                day: parseInt(day)
-            }, { zone: 'America/New_York' });
-
-            if (!startDate.isValid) {
-                return interaction.reply({
-                    content: 'Invalid date! Please check your date and try again.',
-                    ephemeral: false
-                });
-            }
-        } else {
-            // Use today's date in New York timezone
-            startDate = DateTime.now().setZone('America/New_York');
-        }
-
-        // Store the date as ISO string
-        await userDataManager.setUserProperty(userId, 'noContactStartDate', startDate.toISODate());
-
-        const formattedDate = startDate.toFormat('MMMM dd, yyyy');
         await interaction.reply({
-            content: `✅ No-contact start date set to **${formattedDate}**!`,
+            content: '📅 **Select your start date**\n\n**Step 1:** Choose a year',
+            components: [row],
             ephemeral: false
         });
+    },
+
+    getYearOptions() {
+        const currentYear = new Date().getFullYear();
+        const options = [];
+        
+        for (let year = currentYear; year >= currentYear - 5; year--) {
+            options.push({
+                label: year.toString(),
+                value: year.toString()
+            });
+        }
+        
+        return options;
+    },
+
+    getMonthOptions() {
+        const options = [];
+        for (let month = 1; month <= 12; month++) {
+            const monthName = DateTime.fromObject({ month }, { zone: TIMEZONE }).toFormat('MMMM');
+            options.push({
+                label: monthName,
+                value: month.toString()
+            });
+        }
+        return options;
+    },
+
+    getDayOptions(year, month) {
+        const options = [];
+        const daysInMonth = DateTime.fromObject({ year, month }, { zone: TIMEZONE }).daysInMonth;
+        
+        for (let day = 1; day <= daysInMonth; day++) {
+            options.push({
+                label: day.toString(),
+                value: day.toString()
+            });
+        }
+        
+        return options;
+    },
+
+    parseCustomId(customId) {
+        // Extract year, month, day from custom IDs like "nocontact_month_123456_2025"
+        const parts = customId.split('_');
+        return {
+            type: parts[1], // 'year', 'month', or 'day'
+            year: parts[3] ? parseInt(parts[3]) : null,
+            month: parts[4] ? parseInt(parts[4]) : null
+        };
+    },
+
+    async handleSelectMenu(interaction) {
+        const customId = interaction.customId;
+        const userId = interaction.user.id;
+        const selectedValue = interaction.values[0];
+        const parsed = this.parseCustomId(customId);
+
+        if (parsed.type === 'year') {
+            const year = parseInt(selectedValue);
+            const monthMenu = new StringSelectMenuBuilder()
+                .setCustomId(`nocontact_month_${userId}_${year}`)
+                .setPlaceholder('Select a month')
+                .addOptions(this.getMonthOptions());
+
+            const row = new ActionRowBuilder().addComponents(monthMenu);
+
+            await interaction.update({
+                content: `📅 **Select your start date**\n\n**Step 1:** Year - ${year} ✓\n**Step 2:** Choose a month`,
+                components: [row]
+            });
+
+        } else if (parsed.type === 'month') {
+            const year = parsed.year;
+            const month = parseInt(selectedValue);
+            const monthName = DateTime.fromObject({ month }, { zone: TIMEZONE }).toFormat('MMMM');
+            
+            const dayMenu = new StringSelectMenuBuilder()
+                .setCustomId(`nocontact_day_${userId}_${year}_${month}`)
+                .setPlaceholder('Select a day')
+                .addOptions(this.getDayOptions(year, month));
+
+            const row = new ActionRowBuilder().addComponents(dayMenu);
+
+            await interaction.update({
+                content: `📅 **Select your start date**\n\n**Step 1:** Year - ${year} ✓\n**Step 2:** Month - ${monthName} ✓\n**Step 3:** Choose a day`,
+                components: [row]
+            });
+
+        } else if (parsed.type === 'day') {
+            const year = parsed.year;
+            const month = parsed.month;
+            const day = parseInt(selectedValue);
+
+            const startDate = DateTime.fromObject({ year, month, day }, { zone: TIMEZONE });
+
+            if (!startDate.isValid) {
+                return await interaction.update({
+                    content: '❌ Invalid date! Please try again.',
+                    components: []
+                });
+            }
+
+            await userDataManager.setUserProperty(userId, 'noContactStartDate', startDate.toISODate());
+
+            const formattedDate = startDate.toFormat('MMMM dd, yyyy');
+            await interaction.update({
+                content: `✅ No-contact start date set to **${formattedDate}**!`,
+                components: []
+            });
+        }
     },
 
     async handleCheck(interaction, userId) {
@@ -101,32 +187,27 @@ module.exports = {
             });
         }
 
-        const startDate = DateTime.fromISO(startDateString, { zone: 'America/New_York' });
-        const currentDate = DateTime.now().setZone('America/New_York');
-
+        const startDate = DateTime.fromISO(startDateString, { zone: TIMEZONE });
+        const currentDate = DateTime.now().setZone(TIMEZONE);
         const daysDiff = Math.floor(currentDate.diff(startDate, 'days').days);
 
         let message;
-        let isMilestone = false;
 
         if (daysDiff < 0) {
             message = '⚠️ Your start date is in the future! Please set a valid start date with `/nocontact set`.';
         } else if (daysDiff === 0) {
             message = '🌟 You started your no-contact journey today! Stay strong!';
+        } else if (daysDiff === 1) {
+            message = '💪 It\'s been **1 day** since you started no-contact! Keep going!';
         } else {
-            // Check for milestones
-            const milestone = this.getMilestone(daysDiff);
+            const milestone = MILESTONES.find(m => m.days === daysDiff);
             if (milestone) {
                 const announcedMilestones = await userDataManager.getUserProperty(userId, 'announcedMilestones') || [];
-
                 if (announcedMilestones.includes(daysDiff)) {
-                    message = `${milestone.emoji} You've completed **${this.getMilestoneName(daysDiff)}** of no-contact! (Milestone celebrated)`;
+                    message = `${milestone.emoji} You've completed **${milestone.name}** of no-contact! (Milestone celebrated)`;
                 } else {
-                    message = `${milestone.emoji} **MILESTONE REACHED!** You've completed **${this.getMilestoneName(daysDiff)}** of no-contact! 🎉\n\n*Your achievement will be automatically announced soon!*`;
+                    message = `${milestone.emoji} **MILESTONE REACHED!** You've completed **${milestone.name}** of no-contact! 🎉\n\n*Your achievement will be automatically announced soon!*`;
                 }
-                isMilestone = true;
-            } else if (daysDiff === 1) {
-                message = '💪 It\'s been **1 day** since you started no-contact! Keep going!';
             } else {
                 message = `🔥 It's been **${daysDiff} days** since you started no-contact! You're doing amazing!`;
             }
@@ -136,31 +217,6 @@ module.exports = {
             content: message,
             ephemeral: false
         });
-    },
-
-    getMilestone(days) {
-        const milestones = [
-            { days: 1, emoji: '🎉', message: 'has completed **1 full day** of no-contact! First milestone reached!' },
-            { days: 7, emoji: '🌟', message: 'has completed **1 week** of no-contact! A full week strong!' },
-            { days: 30, emoji: '🏆', message: 'has completed **1 month** of no-contact! Incredible dedication!' },
-            { days: 90, emoji: '💎', message: 'has completed **3 months** of no-contact! Diamond strength!' },
-            { days: 180, emoji: '🔥', message: 'has completed **6 months** of no-contact! Half a year of growth!' },
-            { days: 365, emoji: '👑', message: 'has completed **1 FULL YEAR** of no-contact! Absolute legend!' }
-        ];
-
-        return milestones.find(milestone => milestone.days === days);
-    },
-
-    getMilestoneName(days) {
-        const names = {
-            1: '1 full day',
-            7: '1 week',
-            30: '1 month',
-            90: '3 months',
-            180: '6 months',
-            365: '1 full year'
-        };
-        return names[days] || `${days} days`;
     },
 
     async handleReset(interaction, userId) {

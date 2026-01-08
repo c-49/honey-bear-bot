@@ -5,7 +5,7 @@ A Discord bot with modular commands and no-contact streak tracking system.
 ## Features
 
 - **Modular Command System**: Easy to add new commands
-- **No-Contact Tracking**: Track and celebrate no-contact streaks with automatic milestone announcements
+- **No-Contact Tracking**: Track and celebrate no-contact streaks with automatic milestone announcements using an interactive dropdown date picker (supports all date formats - no format confusion!)
 - **Daily Mood Tracker**: Log and visualize your emotional journey with analytics
 - **Affirmation Sharing**: Post positive affirmations with community support threads
 - **Random GIF Support**: `/bite`, `/bonk`, `/hug`, `/pet`, `/uppies` commands with random GIF selection
@@ -98,7 +98,10 @@ A Discord bot with modular commands and no-contact streak tracking system.
   - Shows total affirmations, current streak, and recent affirmations
 
 ### No-Contact Tracking Commands
-- `/nocontact set [date]` - Set your no-contact start date (MM-DD-YYYY format, defaults to today)
+- `/nocontact set` - Set your no-contact start date using interactive dropdowns
+  - Select year, month, and day in sequence
+  - Supports dates from 5 years ago to current year
+  - Defaults to today if not set
 - `/nocontact check` - Check your current no-contact streak
 - `/nocontact reset` - Reset your no-contact record and start over
 

@@ -309,6 +309,35 @@ client.on('interactionCreate', async interaction => {
         return;
     }
 
+    // Handle select menu interactions
+    if (interaction.isStringSelectMenu()) {
+        const customId = interaction.customId;
+
+        try {
+            // Handle no-contact date picker menus
+            if (customId.startsWith('nocontact_year_') || customId.startsWith('nocontact_month_') || customId.startsWith('nocontact_day_')) {
+                const command = client.commands.get('nocontact');
+                if (command && command.handleSelectMenu) {
+                    await command.handleSelectMenu(interaction);
+                }
+            }
+        } catch (error) {
+            console.error('Error handling select menu interaction:', error);
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({
+                    content: 'There was an error handling this interaction!',
+                    ephemeral: true
+                }).catch(() => {});
+            } else {
+                await interaction.editReply({
+                    content: 'There was an error handling this interaction!'
+                }).catch(() => {});
+            }
+        }
+
+        return;
+    }
+
     if (!interaction.isChatInputCommand()) return;
 
     const command = client.commands.get(interaction.commandName);
