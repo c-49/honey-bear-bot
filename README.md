@@ -8,7 +8,7 @@ A Discord bot with modular commands and no-contact streak tracking system.
 - **No-Contact Tracking**: Track and celebrate no-contact streaks with automatic milestone announcements
 - **Daily Mood Tracker**: Log and visualize your emotional journey with analytics
 - **Affirmation Sharing**: Post positive affirmations with community support threads
-- **Random GIF Support**: `/bonk`, `/hug`, `/pet`, `/uppies` commands with random GIF selection
+- **Random GIF Support**: `/bite`, `/bonk`, `/hug`, `/pet`, `/uppies` commands with random GIF selection
 - **PostgreSQL Database**: Persistent user data storage
 - **Admin Tools**: Database management and user analytics
 - **Automatic Milestone Celebrations**: Daily checks for achievements with channel announcements
@@ -73,6 +73,7 @@ A Discord bot with modular commands and no-contact streak tracking system.
 ## Commands
 
 ### General Commands
+- `/bite @user` - Bite a user with a random GIF
 - `/bonk @user` - Bonk a user with a random GIF
 - `/hug @user` - Hug a user with a random GIF
 - `/pet @user` - Pet a user with a random GIF
