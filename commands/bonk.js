@@ -1,5 +1,8 @@
 const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
 const { getRandomGif } = require('../utils/gifUtils');
+const UserDataManager = require('../utils/userDataManager');
+
+const userDataManager = new UserDataManager();
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -32,6 +35,12 @@ module.exports = {
             const content = isSelfTarget
                 ? `${interaction.user} bonked themselves! 💥`
                 : `${interaction.user} bonked ${targetUser}! 💥`;
+
+            // Track stats
+            await userDataManager.incrementGifStat(interaction.user.id, 'bonksGiven');
+            if (!isSelfTarget) {
+                await userDataManager.incrementGifStat(targetUser.id, 'bonksReceived');
+            }
 
             await interaction.editReply({
                 content: content,

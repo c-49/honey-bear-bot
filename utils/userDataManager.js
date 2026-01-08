@@ -157,6 +157,37 @@ class UserDataManager {
         }
     }
 
+    async incrementGifStat(userId, statType) {
+        try {
+            const userData = await this.getUserData(userId);
+            if (!userData.gifStats) {
+                userData.gifStats = {};
+            }
+            if (!userData.gifStats[statType]) {
+                userData.gifStats[statType] = 0;
+            }
+            userData.gifStats[statType]++;
+            
+            await this.pool.query(
+                `INSERT INTO user_data (user_id, data) VALUES ($1, $2)
+                 ON CONFLICT (user_id) DO UPDATE SET data = $2`,
+                [userId, JSON.stringify(userData)]
+            );
+        } catch (error) {
+            console.error('Error incrementing gif stat:', error);
+        }
+    }
+
+    async getGifStats(userId) {
+        try {
+            const userData = await this.getUserData(userId);
+            return userData.gifStats || {};
+        } catch (error) {
+            console.error('Error getting gif stats:', error);
+            return {};
+        }
+    }
+
     // Method to get all users (for milestone checker)
     async getAllUsers() {
         try {
