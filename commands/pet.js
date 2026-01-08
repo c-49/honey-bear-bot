@@ -34,16 +34,20 @@ module.exports = {
                 ? `${interaction.user} petted themselves! 🐾`
                 : `${interaction.user} petted ${targetUser}! 🐾`;
 
-            // Track stats
-            await userDataManager.incrementGifStat(interaction.user.id, 'petsGiven');
-            if (!isSelfTarget) {
-                await userDataManager.incrementGifStat(targetUser.id, 'petsReceived');
-            }
-
             await interaction.editReply({
                 content: content,
                 files: [attachment]
             });
+
+            // Track stats in the background (non-blocking)
+            userDataManager.incrementGifStat(interaction.user.id, 'petsGiven').catch(err => 
+                console.error('Error tracking pets given:', err)
+            );
+            if (!isSelfTarget) {
+                userDataManager.incrementGifStat(targetUser.id, 'petsReceived').catch(err => 
+                    console.error('Error tracking pets received:', err)
+                );
+            }
         } catch (error) {
             console.error('Error sending pet GIF:', error);
             const isSelfTarget = targetUser.id === interaction.user.id;

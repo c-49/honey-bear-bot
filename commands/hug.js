@@ -34,16 +34,20 @@ module.exports = {
                 ? `${interaction.user} hugged themselves! 🤗`
                 : `${interaction.user} hugged ${targetUser}! 🤗`;
 
-            // Track stats
-            await userDataManager.incrementGifStat(interaction.user.id, 'hugsGiven');
-            if (!isSelfTarget) {
-                await userDataManager.incrementGifStat(targetUser.id, 'hugsReceived');
-            }
-
             await interaction.editReply({
                 content: content,
                 files: [attachment]
             });
+
+            // Track stats in the background (non-blocking)
+            userDataManager.incrementGifStat(interaction.user.id, 'hugsGiven').catch(err => 
+                console.error('Error tracking hugs given:', err)
+            );
+            if (!isSelfTarget) {
+                userDataManager.incrementGifStat(targetUser.id, 'hugsReceived').catch(err => 
+                    console.error('Error tracking hugs received:', err)
+                );
+            }
         } catch (error) {
             console.error('Error sending hug GIF:', error);
             const isSelfTarget = targetUser.id === interaction.user.id;
