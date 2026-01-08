@@ -92,11 +92,12 @@ module.exports = {
         return options;
     },
 
-    getDayOptions(year, month) {
+    getDayOptions(year, month, startDay = 1) {
         const options = [];
         const daysInMonth = DateTime.fromObject({ year, month }, { zone: TIMEZONE }).daysInMonth;
+        const endDay = Math.min(startDay + 24, daysInMonth); // Max 25 options per select menu
         
-        for (let day = 1; day <= daysInMonth; day++) {
+        for (let day = startDay; day <= endDay; day++) {
             options.push({
                 label: day.toString(),
                 value: day.toString()
@@ -112,7 +113,8 @@ module.exports = {
         return {
             type: parts[1], // 'year', 'month', or 'day'
             year: parts[3] ? parseInt(parts[3]) : null,
-            month: parts[4] ? parseInt(parts[4]) : null
+            month: parts[4] ? parseInt(parts[4]) : null,
+            startDay: parts[5] ? parseInt(parts[5]) : null
         };
     },
 
@@ -140,18 +142,40 @@ module.exports = {
             const year = parsed.year;
             const month = parseInt(selectedValue);
             const monthName = DateTime.fromObject({ month }, { zone: TIMEZONE }).toFormat('MMMM');
+            const daysInMonth = DateTime.fromObject({ year, month }, { zone: TIMEZONE }).daysInMonth;
             
-            const dayMenu = new StringSelectMenuBuilder()
-                .setCustomId(`nocontact_day_${userId}_${year}_${month}`)
-                .setPlaceholder('Select a day')
-                .addOptions(this.getDayOptions(year, month));
+            // If more than 25 days, use pagination
+            if (daysInMonth > 25) {
+                const rows = [];
+                const dayMenu1 = new StringSelectMenuBuilder()
+                    .setCustomId(`nocontact_day_${userId}_${year}_${month}_1`)
+                    .setPlaceholder('Select a day (1-25)')
+                    .addOptions(this.getDayOptions(year, month, 1));
+                rows.push(new ActionRowBuilder().addComponents(dayMenu1));
 
-            const row = new ActionRowBuilder().addComponents(dayMenu);
+                const dayMenu2 = new StringSelectMenuBuilder()
+                    .setCustomId(`nocontact_day_${userId}_${year}_${month}_26`)
+                    .setPlaceholder('Select a day (26+)')
+                    .addOptions(this.getDayOptions(year, month, 26));
+                rows.push(new ActionRowBuilder().addComponents(dayMenu2));
 
-            await interaction.update({
-                content: `📅 **Select your start date**\n\n**Step 1:** Year - ${year} ✓\n**Step 2:** Month - ${monthName} ✓\n**Step 3:** Choose a day`,
-                components: [row]
-            });
+                await interaction.update({
+                    content: `📅 **Select your start date**\n\n**Step 1:** Year - ${year} ✓\n**Step 2:** Month - ${monthName} ✓\n**Step 3:** Choose a day`,
+                    components: rows
+                });
+            } else {
+                const dayMenu = new StringSelectMenuBuilder()
+                    .setCustomId(`nocontact_day_${userId}_${year}_${month}_1`)
+                    .setPlaceholder('Select a day')
+                    .addOptions(this.getDayOptions(year, month, 1));
+
+                const row = new ActionRowBuilder().addComponents(dayMenu);
+
+                await interaction.update({
+                    content: `📅 **Select your start date**\n\n**Step 1:** Year - ${year} ✓\n**Step 2:** Month - ${monthName} ✓\n**Step 3:** Choose a day`,
+                    components: [row]
+                });
+            }
 
         } else if (parsed.type === 'day') {
             const year = parsed.year;
