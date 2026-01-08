@@ -1,7 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const UserDataManager = require('../utils/userDataManager');
-
-const userDataManager = new UserDataManager();
+const userDataManager = require('../utils/userDataManager');
 
 module.exports = {
     data: new SlashCommandBuilder()

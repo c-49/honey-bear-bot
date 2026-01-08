@@ -1,8 +1,6 @@
 const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
 const { getRandomGif } = require('../utils/gifUtils');
-const UserDataManager = require('../utils/userDataManager');
-
-const userDataManager = new UserDataManager();
+const userDataManager = require('../utils/userDataManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
