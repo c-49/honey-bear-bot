@@ -56,11 +56,13 @@ module.exports = {
 
     async execute(interaction) {
         try {
-            // Check if user has mod role
+            // Check if user has mod role or admin permission
             const modRoleId = '1294078699687247882';
+            const adminRoleId = '1368995164470902967';
             const hasMod = interaction.member.roles.cache.has(modRoleId);
+            const hasAdmin = interaction.member.roles.cache.has(adminRoleId);
 
-            if (!hasMod && !interaction.member.permissions.has('ModerateMembers')) {
+            if (!hasMod && !hasAdmin && !interaction.member.permissions.has('ModerateMembers')) {
                 return interaction.reply({
                     content: '❌ You need the mod role to use this command.',
                     ephemeral: true
@@ -73,24 +75,56 @@ module.exports = {
             // Defer reply since this might take a moment
             await interaction.deferReply();
 
-            // Get the rule
-            const rule = await moderationManager.getRule(ruleName);
-            if (!rule) {
+            // Check if trying to warn themselves
+            if (targetUser.id === interaction.user.id) {
                 return interaction.editReply({
-                    content: `❌ Rule "${ruleName}" not found.`
+                    content: '❌ You cannot warn yourself.'
                 });
             }
 
-            // Check if user is trying to warn the bot or themselves
+            // Get target user's roles
+            let targetMember;
+            try {
+                targetMember = await interaction.guild.members.fetch(targetUser.id);
+            } catch (error) {
+                return interaction.editReply({
+                    content: '❌ Could not fetch target user information.'
+                });
+            }
+
+            const targetHasMod = targetMember.roles.cache.has(modRoleId);
+            const targetHasAdmin = targetMember.roles.cache.has(adminRoleId);
+
+            // Mods cannot warn other mods or admins
+            if (hasMod && !hasAdmin) {
+                if (targetHasMod || targetHasAdmin) {
+                    return interaction.editReply({
+                        content: '❌ Moderators cannot warn other moderators or administrators.'
+                    });
+                }
+            }
+
+            // Admins cannot warn other admins
+            if (hasAdmin) {
+                if (targetHasAdmin) {
+                    return interaction.editReply({
+                        content: '❌ Administrators cannot warn other administrators.'
+                    });
+                }
+            }
+
+            // Check if user is trying to warn the bot
             if (targetUser.id === interaction.client.user.id) {
                 return interaction.editReply({
                     content: '❌ Cannot warn the bot.'
                 });
             }
 
-            if (targetUser.id === interaction.user.id) {
+            // Get the rule
+            const rule = await moderationManager.getRule(ruleName);
+            if (!rule) {
                 return interaction.editReply({
-                    content: '❌ You cannot warn yourself.'
+                    content: `❌ Rule "${ruleName}" not found.`
                 });
             }
 

@@ -146,6 +146,8 @@ A Discord bot with modular commands and no-contact streak tracking system.
   - Sends notification to warned user
   - Shows next escalation action
   - Warnings expire after 30 days
+  - **Restrictions**: Mods cannot warn other mods, admins, or themselves
+  - **Restrictions**: Admins can warn mods, but not other admins or themselves
 
 **Warning Escalation System:**
 - 🟢 **Green (Minor)**: warning → warning → mute → kick
