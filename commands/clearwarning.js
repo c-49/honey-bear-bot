@@ -41,6 +41,12 @@ module.exports = {
 
             const userWarnings = await moderationManager.getUserWarnings(targetUser.id);
             
+            if (!userWarnings || userWarnings.length === 0) {
+                return await interaction.respond([
+                    { name: 'No warnings for this user', value: 'none' }
+                ]);
+            }
+
             let choices = userWarnings.map(warning => ({
                 name: `[${warning.severity.toUpperCase()}] ${warning.rule_name} (${warning.warning_count} warning${warning.warning_count > 1 ? 's' : ''})`,
                 value: warning.rule_name
@@ -62,7 +68,9 @@ module.exports = {
             await interaction.respond(choices);
         } catch (error) {
             console.error('Error in clearwarning autocomplete:', error);
-            await interaction.respond([]);
+            await interaction.respond([
+                { name: 'Error loading warnings', value: 'error' }
+            ]);
         }
     },
 

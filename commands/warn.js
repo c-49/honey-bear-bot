@@ -24,6 +24,12 @@ module.exports = {
             const focusedValue = interaction.options.getFocused();
             const rules = await moderationManager.getAllRules();
             
+            if (!rules || rules.length === 0) {
+                return await interaction.respond([
+                    { name: 'No rules created yet', value: 'none' }
+                ]);
+            }
+
             let choices = rules.map(rule => ({
                 name: `[${rule.severity.toUpperCase()}] ${rule.rule_name}`,
                 value: rule.rule_name
@@ -42,7 +48,9 @@ module.exports = {
             await interaction.respond(choices);
         } catch (error) {
             console.error('Error in warn autocomplete:', error);
-            await interaction.respond([]);
+            await interaction.respond([
+                { name: 'Error loading rules', value: 'error' }
+            ]);
         }
     },
 

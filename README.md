@@ -125,6 +125,35 @@ A Discord bot with modular commands and no-contact streak tracking system.
 - **Message Reference**: Can flag from specific messages to document concerns
 - **Persistent Storage**: All checks logged for historical record and auditing
 
+### Moderation Commands
+
+#### Admin Commands (Admin Role: 1368995164470902967)
+- `/addrule [name] [description] [severity]` - Create a new moderation rule
+  - **severity**: Green (minor), Yellow (medium), or Red (major)
+  - Rule names must be unique
+  - Only admins can add rules
+- `/clearwarning @user [type] [rule]` - Clear warnings for a user
+  - **type**: "Clear All" (remove all warnings) or "Clear Specific" (remove one rule's warning)
+  - Warnings are tracked per rule/severity level
+- `/userstatus @user` - View a user's complete moderation record (public)
+  - Shows all active warnings with expiration dates
+  - Displays next escalation action for each violation type
+
+#### Moderator Commands (Mod Role: 1294078699687247882)
+- `/warn @user [rule]` - Warn a user for breaking a rule
+  - Uses autocomplete for easy rule selection
+  - Tracks warnings per rule (not cumulative across rules)
+  - Sends notification to warned user
+  - Shows next escalation action
+  - Warnings expire after 30 days
+
+**Warning Escalation System:**
+- 🟢 **Green (Minor)**: warning → warning → mute → kick
+- 🟡 **Yellow (Medium)**: warning → warning → kick → ban
+- 🔴 **Red (Major)**: warning → warning → ban
+
+Each user's warning count is tracked individually per rule. When a user accumulates warnings for the same rule, the escalation sequence progresses. Warnings automatically expire after 30 days.
+
 ### Admin Commands (Administrator Permission Required)
 - `/admindata list` - View all users with no-contact data, ranked by streak length
 - `/admindata user @user` - View detailed data for a specific user
@@ -179,10 +208,15 @@ honey-bear-bot/
 │   ├── affirmationstats.js # Affirmation analytics
 │   ├── nocontact.js      # No-contact tracking system
 │   ├── check.js          # Wellness check-in command
+│   ├── addrule.js        # Add moderation rules (admin)
+│   ├── warn.js           # Warn users for rule violations (mods)
+│   ├── clearwarning.js   # Clear user warnings (admin)
+│   ├── userstatus.js     # View user moderation status (admin)
 │   └── admindata.js      # Admin database management
 ├── utils/                # Utility functions
 │   ├── gifUtils.js       # GIF handling utilities
 │   ├── userDataManager.js # PostgreSQL database manager
+│   ├── moderationManager.js # Moderation system manager
 │   ├── milestoneChecker.js # Automatic milestone detection
 │   └── wellnessCheckManager.js # Wellness check monitoring
 ├── gifs/                 # GIF storage folder
@@ -237,6 +271,28 @@ CREATE TABLE wellness_checks (
     response_text TEXT,
     dms_disabled BOOLEAN DEFAULT false,
     status VARCHAR(50) DEFAULT 'pending'
+);
+
+CREATE TABLE moderation_rules (
+    id SERIAL PRIMARY KEY,
+    rule_name VARCHAR(255) UNIQUE NOT NULL,
+    description TEXT NOT NULL,
+    severity VARCHAR(10) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE user_warnings (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    rule_id INTEGER NOT NULL,
+    rule_name VARCHAR(255) NOT NULL,
+    severity VARCHAR(10) NOT NULL,
+    warning_count INTEGER NOT NULL DEFAULT 1,
+    warned_by VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP,
+    FOREIGN KEY (rule_id) REFERENCES moderation_rules(id)
 );
 ```
 
