@@ -85,6 +85,46 @@ class UserDataManager {
                 ON wellness_checks(user_id)
             `);
 
+            // Create the moderation_rules table if it doesn't exist
+            await this.pool.query(`
+                CREATE TABLE IF NOT EXISTS moderation_rules (
+                    id SERIAL PRIMARY KEY,
+                    rule_name VARCHAR(255) UNIQUE NOT NULL,
+                    description TEXT NOT NULL,
+                    severity VARCHAR(10) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    created_by VARCHAR(255) NOT NULL
+                )
+            `);
+
+            // Create the user_warnings table if it doesn't exist
+            await this.pool.query(`
+                CREATE TABLE IF NOT EXISTS user_warnings (
+                    id SERIAL PRIMARY KEY,
+                    user_id VARCHAR(255) NOT NULL,
+                    rule_id INTEGER NOT NULL,
+                    rule_name VARCHAR(255) NOT NULL,
+                    severity VARCHAR(10) NOT NULL,
+                    warning_count INTEGER NOT NULL DEFAULT 1,
+                    warned_by VARCHAR(255) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    expires_at TIMESTAMP,
+                    FOREIGN KEY (rule_id) REFERENCES moderation_rules(id)
+                )
+            `);
+
+            // Create index for faster lookups
+            await this.pool.query(`
+                CREATE INDEX IF NOT EXISTS idx_user_warnings_user_severity
+                ON user_warnings(user_id, severity, expires_at)
+            `);
+
+            // Create index for rule lookups
+            await this.pool.query(`
+                CREATE INDEX IF NOT EXISTS idx_moderation_rules_severity
+                ON moderation_rules(severity)
+            `);
+
             console.log('Database initialized successfully');
         } catch (error) {
             console.error('Error initializing database:', error);
