@@ -99,25 +99,34 @@ class ModerationManager {
             // Check if user already has a warning for this rule that hasn't expired
             const existingWarning = await this.getActiveWarning(userId, ruleId);
 
+            // Calculate expiration based on severity
+            let expiresAtDate;
+            if (severity === 'green') {
+                expiresAtDate = DateTime.now().plus({ days: 7 }).toJSDate();
+            } else if (severity === 'yellow') {
+                expiresAtDate = DateTime.now().plus({ days: 30 }).toJSDate();
+            } else if (severity === 'red') {
+                expiresAtDate = DateTime.now().plus({ months: 6 }).toJSDate();
+            }
+
             if (existingWarning) {
                 // Increment warning count
                 const newCount = existingWarning.warning_count + 1;
                 const result = await this.pool.query(
                     `UPDATE user_warnings
-                     SET warning_count = $1
-                     WHERE id = $2
+                     SET warning_count = $1, expires_at = $2
+                     WHERE id = $3
                      RETURNING *`,
-                    [newCount, existingWarning.id]
+                    [newCount, expiresAtDate, existingWarning.id]
                 );
                 return result.rows[0];
             } else {
-                // Create new warning - expires in 30 days
-                const expiresAt = DateTime.now().plus({ days: 30 }).toJSDate();
+                // Create new warning with severity-based expiration
                 const result = await this.pool.query(
                     `INSERT INTO user_warnings (user_id, rule_id, rule_name, severity, warning_count, warned_by, expires_at)
                      VALUES ($1, $2, $3, $4, 1, $5, $6)
                      RETURNING *`,
-                    [userId, ruleId, ruleName, severity, warnedBy, expiresAt]
+                    [userId, ruleId, ruleName, severity, warnedBy, expiresAtDate]
                 );
                 return result.rows[0];
             }

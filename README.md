@@ -145,16 +145,19 @@ A Discord bot with modular commands and no-contact streak tracking system.
   - Tracks warnings per rule (not cumulative across rules)
   - Sends notification to warned user
   - Shows next escalation action
-  - Warnings expire after 30 days
+  - Warnings expire based on severity:
+    - 🟢 Green: 7 days
+    - 🟡 Yellow: 30 days
+    - 🔴 Red: 6 months
   - **Restrictions**: Mods cannot warn other mods, admins, or themselves
   - **Restrictions**: Admins can warn mods, but not other admins or themselves
 
 **Warning Escalation System:**
-- 🟢 **Green (Minor)**: warning → warning → mute → kick
-- 🟡 **Yellow (Medium)**: warning → warning → kick → ban
-- 🔴 **Red (Major)**: warning → warning → ban
+- 🟢 **Green (Minor)**: warning → warning → mute → kick (expires in 7 days)
+- 🟡 **Yellow (Medium)**: warning → warning → kick → ban (expires in 30 days)
+- 🔴 **Red (Major)**: warning → warning → ban (expires in 6 months)
 
-Each user's warning count is tracked individually per rule. When a user accumulates warnings for the same rule, the escalation sequence progresses. Warnings automatically expire after 30 days.
+Each user's warning count is tracked individually per rule. When a user accumulates warnings for the same rule, the escalation sequence progresses. Warnings automatically expire based on severity level.
 
 ### Admin Commands (Administrator Permission Required)
 - `/admindata list` - View all users with no-contact data, ranked by streak length
