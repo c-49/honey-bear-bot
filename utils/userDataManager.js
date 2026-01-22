@@ -469,6 +469,38 @@ class UserDataManager {
             return null;
         }
     }
+
+    // UWU lock methods
+    async setUwuLocked(userId, locked = true) {
+        try {
+            await this.setUserProperty(userId, 'uwuLocked', locked);
+            return true;
+        } catch (error) {
+            console.error('Error setting uwu locked status:', error);
+            return false;
+        }
+    }
+
+    async isUwuLocked(userId) {
+        try {
+            const userData = await this.getUserData(userId);
+            return userData.uwuLocked === true;
+        } catch (error) {
+            console.error('Error checking uwu locked status:', error);
+            return false;
+        }
+    }
+
+    async toggleUwuLock(userId) {
+        try {
+            const isLocked = await this.isUwuLocked(userId);
+            await this.setUwuLocked(userId, !isLocked);
+            return !isLocked;
+        } catch (error) {
+            console.error('Error toggling uwu lock:', error);
+            return null;
+        }
+    }
 }
 
 module.exports = new UserDataManager();

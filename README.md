@@ -9,6 +9,7 @@ A Discord bot with modular commands and no-contact streak tracking system.
 - **Daily Mood Tracker**: Log and visualize your emotional journey with analytics
 - **Affirmation Sharing**: Post positive affirmations with community support threads
 - **Random GIF Support**: `/bite`, `/bonk`, `/hug`, `/pet`, `/uppies` commands with random GIF selection
+- **UWU Lock System**: A fun punishment feature that converts locked users' messages to cringe uwu speak 💜
 - **PostgreSQL Database**: Persistent user data storage
 - **Admin Tools**: Database management and user analytics
 - **Automatic Milestone Celebrations**: Daily checks for achievements with channel announcements
@@ -96,6 +97,31 @@ A Discord bot with modular commands and no-contact streak tracking system.
 - `/affirmationstats [period]` - View your affirmation tracking statistics
   - Periods: Last 7 days, Last 30 days, or All time
   - Shows total affirmations, current streak, and recent affirmations
+
+### UWU Lock Commands (Moderators Only)
+- `/uwulock @user` - UWU lock a user as a funny punishment! 🔒
+  - Moderators can lock a user, preventing them from already being locked
+  - All messages from locked users are automatically converted to uwu speak
+  - Original message is deleted and replaced with a reply containing the uwu-ified version
+  - Locked user receives a DM notification about their new status
+  - Locked users see an interactive unlock button in the mod's message
+
+**UWU Lock Features:**
+- **Automatic Conversion**: All messages are converted to uwu speak with:
+  - R/L → W conversion (e.g., "hello" → "hewwo")
+  - Random stuttering effects (e.g., "s-s-sure")
+  - 60+ cringe anime faces and actions (e.g., `*nuzzles*`, `*licks lips*`, `*notices bulge*`, `nyaa~`, etc.)
+- **Non-Disruptive**: Original messages are deleted and replaced with replies, keeping chat flowing naturally
+- **Unlock Options**:
+  - Locked users can click their own "Unlock me! 🔓" button to free themselves
+  - Moderators can unlock users at any time using the same button
+  - Lock status persists in the database until unlocked
+- **Database Tracking**: UWU lock status is stored per user for persistence across sessions
+
+**Example UWU Conversions:**
+- "hello my friend" → "hewwo my fwiend ~ ✨"
+- "I really like this" → "I weawwy wike this *blushes*"
+- "what's up" → "w-w-what's up (´・ω・`)"
 
 ### No-Contact Tracking Commands
 - `/nocontact set` - Set your no-contact start date using interactive dropdowns

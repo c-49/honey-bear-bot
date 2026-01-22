@@ -4,6 +4,7 @@ const path = require('path');
 const MilestoneChecker = require('./utils/milestoneChecker');
 const WellnessCheckManager = require('./utils/wellnessCheckManager');
 const userDataManager = require('./utils/userDataManager');
+const { convertToUwu } = require('./utils/uwuFilter');
 require('dotenv').config();
 
 const client = new Client({
@@ -47,6 +48,38 @@ client.once('ready', () => {
     const wellnessCheckManager = new WellnessCheckManager(client);
     wellnessCheckManager.start();
     client.wellnessCheckManager = wellnessCheckManager;
+});
+
+client.on('messageCreate', async message => {
+    // Ignore bot messages and DMs
+    if (message.author.bot || !message.guild) return;
+
+    try {
+        // Check if the user is uwu locked
+        const isUwuLocked = await userDataManager.isUwuLocked(message.author.id);
+
+        if (isUwuLocked) {
+            // Convert the message to uwu speak
+            const uwuContent = convertToUwu(message.content);
+
+            // Delete the original message and post the uwu version
+            if (uwuContent && uwuContent.trim().length > 0) {
+                await message.reply({
+                    content: `**${message.author.displayName}**: ${uwuContent}`,
+                    allowedMentions: { repliedUser: false }
+                });
+            }
+
+            // Delete original message
+            try {
+                await message.delete();
+            } catch (deleteError) {
+                console.log(`Could not delete message from ${message.author.tag}`);
+            }
+        }
+    } catch (error) {
+        console.error('Error handling uwu locked message:', error);
+    }
 });
 
 client.on('interactionCreate', async interaction => {
@@ -288,6 +321,58 @@ client.on('interactionCreate', async interaction => {
                     });
 
                     console.log(`${interaction.user.tag} reached out in affirmation thread for user ${userId}`);
+                    break;
+                }
+
+                case customId.startsWith('uwu_unlock_'): {
+                    // Handle uwu unlock button
+                    const targetUserId = customId.replace('uwu_unlock_', '');
+                    
+                    // Check if the user clicking is the target or a mod
+                    const MOD_ROLE_IDS = ['1368995164470902967', '1294078699687247882', '1359466436212559933'];
+                    const isTargetUser = interaction.user.id === targetUserId;
+                    const isMod = MOD_ROLE_IDS.some(roleId => interaction.member.roles.cache.has(roleId));
+
+                    if (!isTargetUser && !isMod) {
+                        return await interaction.reply({
+                            content: '❌ Only the uwu locked user or a moderator can unlock them!',
+                            flags: 64 // ephemeral
+                        });
+                    }
+
+                    // Unlock the user
+                    const wasLocked = await userDataManager.isUwuLocked(targetUserId);
+                    if (!wasLocked) {
+                        return await interaction.reply({
+                            content: '❌ This user is not uwu locked!',
+                            flags: 64 // ephemeral
+                        });
+                    }
+
+                    await userDataManager.setUwuLocked(targetUserId, false);
+
+                    // Update the embed and remove button
+                    const oldEmbed = interaction.message.embeds[0];
+                    if (oldEmbed) {
+                        const newEmbed = EmbedBuilder.from(oldEmbed)
+                            .setColor('#00FF00')
+                            .setTitle('🔓 UWU UNLOCKED 🔓')
+                            .addFields(
+                                { name: 'Status', value: `Unlocked by ${interaction.user.username}` }
+                            );
+
+                        await interaction.message.edit({
+                            embeds: [newEmbed],
+                            components: []
+                        });
+                    }
+
+                    await interaction.reply({
+                        content: `✅ ${isTargetUser ? 'You are now' : 'User is now'} freed from uwu lock! Enjoy your freedom! 🎉`,
+                        flags: 64 // ephemeral
+                    });
+
+                    console.log(`${interaction.user.tag} unlocked user ${targetUserId} from uwu lock`);
                     break;
                 }
             }
