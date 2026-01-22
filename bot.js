@@ -79,7 +79,7 @@ client.on('messageCreate', async message => {
                     // Send message as if it's from the user
                     await webhook.send({
                         content: uwuContent,
-                        username: message.author.username,
+                        username: message.author.displayName,
                         avatarURL: message.author.avatarURL(),
                         threadId: message.channelId === message.channel.id ? undefined : message.channel.id
                     });
