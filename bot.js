@@ -62,19 +62,39 @@ client.on('messageCreate', async message => {
             // Convert the message to uwu speak
             const uwuContent = convertToUwu(message.content);
 
-            // Delete the original message and post the uwu version
+            // Send uwu version using webhook to mimic the user
             if (uwuContent && uwuContent.trim().length > 0) {
-                await message.reply({
-                    content: `**${message.author.displayName}**: ${uwuContent}`,
-                    allowedMentions: { repliedUser: false }
-                });
-            }
+                try {
+                    // Get or create a webhook for this channel
+                    const webhooks = await message.channel.fetchWebhooks();
+                    let webhook = webhooks.find(wh => wh.name === 'UWU Lock Bot');
+                    
+                    if (!webhook) {
+                        webhook = await message.channel.createWebhook({
+                            name: 'UWU Lock Bot',
+                            avatar: message.client.user.avatarURL()
+                        });
+                    }
 
-            // Delete original message
-            try {
-                await message.delete();
-            } catch (deleteError) {
-                console.log(`Could not delete message from ${message.author.tag}`);
+                    // Send message as if it's from the user
+                    await webhook.send({
+                        content: uwuContent,
+                        username: message.author.username,
+                        avatarURL: message.author.avatarURL(),
+                        threadId: message.channelId === message.channel.id ? undefined : message.channel.id
+                    });
+                } catch (webhookError) {
+                    console.log(`Could not send webhook message for ${message.author.tag}: ${webhookError.message}`);
+                    // Fallback to regular reply if webhook fails
+                    try {
+                        await message.reply({
+                            content: uwuContent,
+                            allowedMentions: { repliedUser: false }
+                        });
+                    } catch (replyError) {
+                        console.log(`Fallback reply also failed: ${replyError.message}`);
+                    }
+                }
             }
         }
     } catch (error) {
