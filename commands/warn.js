@@ -56,15 +56,13 @@ module.exports = {
 
     async execute(interaction) {
         try {
-            // Check if user has mod role or admin permission
-            const modRoleId = '1294078699687247882';
-            const adminRoleId = '1368995164470902967';
-            const hasMod = interaction.member.roles.cache.has(modRoleId);
-            const hasAdmin = interaction.member.roles.cache.has(adminRoleId);
+            // Check if user has one of the mod/admin roles
+            const modRoles = ['1359466436212559933', '1294078699687247882', '1368995164470902967'];
+            const hasModRole = modRoles.some(roleId => interaction.member.roles.cache.has(roleId));
 
-            if (!hasMod && !hasAdmin && !interaction.member.permissions.has('ModerateMembers')) {
+            if (!hasModRole && !interaction.member.permissions.has('ModerateMembers')) {
                 return interaction.reply({
-                    content: '❌ You need the mod role to use this command.',
+                    content: '❌ You need a moderation role to use this command.',
                     ephemeral: true
                 });
             }
@@ -92,23 +90,17 @@ module.exports = {
                 });
             }
 
-            const targetHasMod = targetMember.roles.cache.has(modRoleId);
-            const targetHasAdmin = targetMember.roles.cache.has(adminRoleId);
+            const targetHasModRole = modRoles.some(roleId => targetMember.roles.cache.has(roleId));
 
             // Mods cannot warn other mods or admins
-            if (hasMod && !hasAdmin) {
-                if (targetHasMod || targetHasAdmin) {
+            if (!targetHasModRole) {
+                // User being warned doesn't have a mod role, proceed normally
+            } else {
+                // Target has a mod role, check if the warner can warn them
+                if (hasModRole) {
+                    // If both have mod roles, don't allow warning
                     return interaction.editReply({
-                        content: '❌ Moderators cannot warn other moderators or administrators.'
-                    });
-                }
-            }
-
-            // Admins cannot warn other admins
-            if (hasAdmin) {
-                if (targetHasAdmin) {
-                    return interaction.editReply({
-                        content: '❌ Administrators cannot warn other administrators.'
+                        content: '❌ You cannot warn other moderators or administrators.'
                     });
                 }
             }

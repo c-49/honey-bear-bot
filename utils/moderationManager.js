@@ -76,6 +76,27 @@ class ModerationManager {
     }
 
     /**
+     * Delete a rule by name
+     */
+    async deleteRule(ruleName) {
+        try {
+            const result = await this.pool.query(
+                'DELETE FROM moderation_rules WHERE rule_name = $1 RETURNING *',
+                [ruleName]
+            );
+
+            if (result.rows.length === 0) {
+                throw new Error(`Rule "${ruleName}" not found.`);
+            }
+
+            return result.rows[0];
+        } catch (error) {
+            console.error('Error deleting rule:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Get rules by severity
      */
     async getRulesBySeverity(severity) {
