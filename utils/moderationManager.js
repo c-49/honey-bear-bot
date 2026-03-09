@@ -80,14 +80,29 @@ class ModerationManager {
      */
     async deleteRule(ruleName) {
         try {
+            // First, get the rule to get its ID
+            const ruleResult = await this.pool.query(
+                'SELECT id FROM moderation_rules WHERE rule_name = $1',
+                [ruleName]
+            );
+
+            if (ruleResult.rows.length === 0) {
+                throw new Error(`Rule "${ruleName}" not found.`);
+            }
+
+            const ruleId = ruleResult.rows[0].id;
+
+            // Delete all warnings associated with this rule
+            await this.pool.query(
+                'DELETE FROM user_warnings WHERE rule_id = $1',
+                [ruleId]
+            );
+
+            // Now delete the rule
             const result = await this.pool.query(
                 'DELETE FROM moderation_rules WHERE rule_name = $1 RETURNING *',
                 [ruleName]
             );
-
-            if (result.rows.length === 0) {
-                throw new Error(`Rule "${ruleName}" not found.`);
-            }
 
             return result.rows[0];
         } catch (error) {
