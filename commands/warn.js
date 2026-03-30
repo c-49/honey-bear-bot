@@ -138,6 +138,17 @@ module.exports = {
             const emoji = rule.severity === 'red' ? '🔴' : 
                          rule.severity === 'yellow' ? '🟡' : '🟢';
 
+            // Execute moderation action if needed
+            let actionResult = null;
+            if (nextAction && ['mute', 'kick', 'ban'].includes(nextAction)) {
+                actionResult = await moderationManager.executeModeration(
+                    nextAction,
+                    targetMember,
+                    rule.rule_name,
+                    rule.description
+                );
+            }
+
             // Create warning embed
             const embed = new EmbedBuilder()
                 .setColor(
@@ -157,6 +168,21 @@ module.exports = {
                     { name: 'Expires', value: `<t:${Math.floor(new Date(warning.expires_at).getTime() / 1000)}:R>`, inline: true }
                 )
                 .setFooter({ text: `User ID: ${targetUser.id}` });
+
+            // Add action result if an enforcement action was taken
+            if (actionResult && !actionResult.success) {
+                embed.addFields({
+                    name: '⚠️ Action Status',
+                    value: actionResult.message,
+                    inline: false
+                });
+            } else if (actionResult && actionResult.success && nextAction !== 'warning') {
+                embed.addFields({
+                    name: '✅ Action Executed',
+                    value: actionResult.message,
+                    inline: false
+                });
+            }
 
             await interaction.editReply({
                 embeds: [embed]
@@ -178,6 +204,15 @@ module.exports = {
                         { name: 'Severity', value: rule.severity.toUpperCase(), inline: true },
                         { name: 'Warning Count', value: `${warning.warning_count}/${moderationManager.escalationSequences[rule.severity].length}`, inline: true }
                     );
+
+                // Add action result to DM if an enforcement action was taken
+                if (actionResult && actionResult.success && nextAction !== 'warning') {
+                    dmEmbed.addFields({
+                        name: '⚠️ Action Taken',
+                        value: actionResult.message,
+                        inline: false
+                    });
+                }
 
                 await targetUser.send({ embeds: [dmEmbed] });
             } catch (dmError) {

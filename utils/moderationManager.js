@@ -242,6 +242,44 @@ class ModerationManager {
     }
 
     /**
+     * Execute a moderation action (mute, kick, ban) on a user
+     */
+    async executeModeration(action, targetMember, ruleName, reason) {
+        try {
+            if (!action || action === 'warning') {
+                return { success: true, message: 'No enforcement action needed.' };
+            }
+
+            if (!targetMember) {
+                return { success: false, message: 'Target member not found.' };
+            }
+
+            const fullReason = `Breaking rule: ${ruleName} - ${reason}`;
+
+            switch (action) {
+                case 'mute':
+                    // Timeout for 24 hours (86400000 milliseconds)
+                    await targetMember.timeout(86400000, fullReason);
+                    return { success: true, message: 'User timed out for 24 hours.' };
+
+                case 'kick':
+                    await targetMember.kick(fullReason);
+                    return { success: true, message: 'User kicked from the server.' };
+
+                case 'ban':
+                    await targetMember.ban({ reason: fullReason });
+                    return { success: true, message: 'User banned from the server.' };
+
+                default:
+                    return { success: false, message: `Unknown action: ${action}` };
+            }
+        } catch (error) {
+            console.error(`Error executing moderation action ${action}:`, error);
+            return { success: false, message: `Failed to execute ${action}: ${error.message}` };
+        }
+    }
+
+    /**
      * Clear all warnings for a user
      */
     async clearAllWarnings(userId, clearedBy) {
