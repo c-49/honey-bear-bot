@@ -446,10 +446,10 @@ client.on('interactionCreate', async interaction => {
                     .setDescription('Keep this plan close during difficult moments. You are stronger than you think. 💙')
                     .addFields(
                         { name: '🧠 Warning Signs', value: warningSigns || '*Not filled in yet*', inline: false },
-                        { name: '💚 Self-Soothing Actions', value: selfSoothing || '*Not filled in yet*', inline: false },
-                        { name: '🤝 People or Places That Help', value: peoplePlaces || '*Not filled in yet*', inline: false },
-                        { name: '📞 Emergency Supports', value: emergencySupports || '*Not filled in yet*', inline: false },
-                        { name: '🌱 Reasons to Stay Grounded', value: reasonsToStay || '*Not filled in yet*', inline: false }
+                        { name: '💚 Soothing Actions', value: selfSoothing || '*Not filled in yet*', inline: false },
+                        { name: '🤝 Support Network', value: peoplePlaces || '*Not filled in yet*', inline: false },
+                        { name: '📞 Emergency Support', value: emergencySupports || '*Not filled in yet*', inline: false },
+                        { name: '🌱 Reasons to Live', value: reasonsToStay || '*Not filled in yet*', inline: false }
                     )
                     .setFooter({ text: 'This plan is for your safety and wellbeing. Take care of yourself. 💚' })
                     .setTimestamp();

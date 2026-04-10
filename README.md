@@ -157,10 +157,10 @@ A Discord bot with modular commands and no-contact streak tracking system.
   - **user**: User to create/edit plan for (Mods/Admins only, optional)
   - Presents a modal with 5 fillable sections:
     - 🧠 **Warning Signs** (thoughts, feelings, situations that trigger you)
-    - 💚 **Self-Soothing Actions** (things that help you feel better)
-    - 🤝 **People or Places That Help** (trusted friends, safe places, online spaces)
-    - 📞 **Emergency Supports** (crisis lines, trusted contacts, resources)
-    - 🌱 **Reasons to Stay Grounded** (things you care about, goals, important people)
+    - 💚 **Soothing Actions** (things that help you feel better)
+    - 🤝 **Support Network** (trusted friends, safe places, online spaces)
+    - 📞 **Emergency Support** (crisis lines, trusted contacts, resources)
+    - 🌱 **Reasons to Live** (things you care about, goals, important people)
   - Plan is saved to database and automatically DMed to you for reference
   - Users can have only one active plan (new ones replace old ones)
   - Mods and admins can create/edit plans for other users to help them fill it out

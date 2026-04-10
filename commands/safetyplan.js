@@ -45,32 +45,32 @@ module.exports = {
         const sections = [
             {
                 customId: 'warning_signs',
-                label: '🧠 Warning Signs (Thoughts, Feelings, Situations)',
-                placeholder: 'e.g., Thoughts: Racing thoughts...\nFeelings: Anxious, overwhelmed...\nSituations: When stressed or alone...',
+                label: '🧠 Warning Signs',
+                placeholder: 'Thoughts: Racing thoughts...\nFeelings: Anxious, overwhelmed...\nSituations: When stressed or alone...',
                 value: existingPlan.warningSigns || ''
             },
             {
                 customId: 'self_soothing',
-                label: '💚 Self-Soothing Actions',
-                placeholder: 'e.g., Take a warm shower, listen to music, go for a walk, breathing exercises...',
+                label: '💚 Soothing Actions',
+                placeholder: 'Things that help: warm shower, music, walk, breathing exercises...',
                 value: existingPlan.selfSoothing || ''
             },
             {
                 customId: 'people_places',
-                label: '🤝 People or Places That Help',
-                placeholder: 'e.g., Friends: Alice, Bob\nOnline: Discord community, support forums\nPlaces: Library, park, cozy café...',
+                label: '🤝 Support Network',
+                placeholder: 'Friends: Alice, Bob\nOnline: Discord, support forums\nPlaces: Library, park, cozy café...',
                 value: existingPlan.peoplePlaces || ''
             },
             {
                 customId: 'emergency_supports',
-                label: '📞 Emergency Supports',
-                placeholder: 'Crisis line: 988 (US)\nTrusted adult: [Name/Contact]\nOther: [Therapist, hotline, resource]...',
+                label: '📞 Emergency Support',
+                placeholder: 'Crisis line: 988 (US)\nTrusted person: [Name/Contact]\nOther: Therapist, hotline, resource...',
                 value: existingPlan.emergencySupports || ''
             },
             {
                 customId: 'reasons_to_stay',
-                label: '🌱 Reasons to Stay Grounded',
-                placeholder: 'Things I care about: [Your passions]\nGoals: [Your aspirations]\nPeople who matter: [Loved ones]...',
+                label: '🌱 Reasons to Live',
+                placeholder: 'Things I care about: [passions]\nGoals: [aspirations]\nPeople: [loved ones]...',
                 value: existingPlan.reasonsToStay || ''
             }
         ];

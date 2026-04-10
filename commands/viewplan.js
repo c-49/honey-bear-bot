@@ -47,10 +47,10 @@ module.exports = {
                 .setDescription('Their personal safety plan is saved for reference. 💙')
                 .addFields(
                     { name: '🧠 Warning Signs', value: plan.warningSigns || '*Not filled in*', inline: false },
-                    { name: '💚 Self-Soothing Actions', value: plan.selfSoothing || '*Not filled in*', inline: false },
-                    { name: '🤝 People or Places That Help', value: plan.peoplePlaces || '*Not filled in*', inline: false },
-                    { name: '📞 Emergency Supports', value: plan.emergencySupports || '*Not filled in*', inline: false },
-                    { name: '🌱 Reasons to Stay Grounded', value: plan.reasonsToStay || '*Not filled in*', inline: false }
+                    { name: '💚 Soothing Actions', value: plan.selfSoothing || '*Not filled in*', inline: false },
+                    { name: '🤝 Support Network', value: plan.peoplePlaces || '*Not filled in*', inline: false },
+                    { name: '📞 Emergency Support', value: plan.emergencySupports || '*Not filled in*', inline: false },
+                    { name: '🌱 Reasons to Live', value: plan.reasonsToStay || '*Not filled in*', inline: false }
                 )
                 .setFooter({ text: `Last updated: ${new Date(plan.updatedAt).toLocaleString()}` })
                 .setTimestamp();
