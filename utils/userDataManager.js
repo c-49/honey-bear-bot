@@ -125,6 +125,27 @@ class UserDataManager {
                 ON moderation_rules(severity)
             `);
 
+            // Create the safety_plans table if it doesn't exist
+            await this.pool.query(`
+                CREATE TABLE IF NOT EXISTS safety_plans (
+                    id SERIAL PRIMARY KEY,
+                    user_id VARCHAR(255) UNIQUE NOT NULL,
+                    warning_signs TEXT,
+                    self_soothing TEXT,
+                    people_places TEXT,
+                    emergency_supports TEXT,
+                    reasons_to_stay TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
+            // Create index for user lookups
+            await this.pool.query(`
+                CREATE INDEX IF NOT EXISTS idx_safety_plans_user_id
+                ON safety_plans(user_id)
+            `);
+
             console.log('Database initialized successfully');
         } catch (error) {
             console.error('Error initializing database:', error);
@@ -498,6 +519,55 @@ class UserDataManager {
             return !isLocked;
         } catch (error) {
             console.error('Error toggling uwu lock:', error);
+            return null;
+        }
+    }
+
+    // Safety plan methods
+    async saveSafetyPlan(userId, planData) {
+        try {
+            const result = await this.pool.query(
+                `INSERT INTO safety_plans (user_id, warning_signs, self_soothing, people_places, emergency_supports, reasons_to_stay, updated_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, NOW())
+                 ON CONFLICT (user_id) DO UPDATE SET 
+                    warning_signs = $2,
+                    self_soothing = $3,
+                    people_places = $4,
+                    emergency_supports = $5,
+                    reasons_to_stay = $6,
+                    updated_at = NOW()
+                 RETURNING *`,
+                [userId, planData.warningSigns || '', planData.selfSoothing || '', 
+                 planData.peoplePlaces || '', planData.emergencySupports || '', 
+                 planData.reasonsToStay || '']
+            );
+            return result.rows[0];
+        } catch (error) {
+            console.error('Error saving safety plan:', error);
+            return null;
+        }
+    }
+
+    async getSafetyPlan(userId) {
+        try {
+            const result = await this.pool.query(
+                'SELECT warning_signs, self_soothing, people_places, emergency_supports, reasons_to_stay, updated_at FROM safety_plans WHERE user_id = $1',
+                [userId]
+            );
+            if (result.rows.length === 0) {
+                return null;
+            }
+            const row = result.rows[0];
+            return {
+                warningSigns: row.warning_signs,
+                selfSoothing: row.self_soothing,
+                peoplePlaces: row.people_places,
+                emergencySupports: row.emergency_supports,
+                reasonsToStay: row.reasons_to_stay,
+                updatedAt: row.updated_at
+            };
+        } catch (error) {
+            console.error('Error getting safety plan:', error);
             return null;
         }
     }

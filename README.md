@@ -8,6 +8,7 @@ A Discord bot with modular commands and no-contact streak tracking system.
 - **No-Contact Tracking**: Track and celebrate no-contact streaks with automatic milestone announcements using an interactive dropdown date picker (supports all date formats - no format confusion!)
 - **Daily Mood Tracker**: Log and visualize your emotional journey with analytics
 - **Affirmation Sharing**: Post positive affirmations with community support threads
+- **Personal Safety Plans**: Create fillable safety plans with emergency contacts and coping strategies
 - **Random GIF Support**: `/bite`, `/bonk`, `/hug`, `/pet`, `/uppies` commands with random GIF selection
 - **UWU Lock System**: A fun punishment feature that converts locked users' messages to cringe uwu speak 💜
 - **PostgreSQL Database**: Persistent user data storage
@@ -151,6 +152,33 @@ A Discord bot with modular commands and no-contact streak tracking system.
 - **Message Reference**: Can flag from specific messages to document concerns
 - **Persistent Storage**: All checks logged for historical record and auditing
 
+### Safety Plan Commands
+- `/safetyplan [user]` - Create or update your personal safety plan
+  - **user**: User to create/edit plan for (Mods/Admins only, optional)
+  - Presents a modal with 5 fillable sections:
+    - 🧠 **Warning Signs** (thoughts, feelings, situations that trigger you)
+    - 💚 **Self-Soothing Actions** (things that help you feel better)
+    - 🤝 **People or Places That Help** (trusted friends, safe places, online spaces)
+    - 📞 **Emergency Supports** (crisis lines, trusted contacts, resources)
+    - 🌱 **Reasons to Stay Grounded** (things you care about, goals, important people)
+  - Plan is saved to database and automatically DMed to you for reference
+  - Users can have only one active plan (new ones replace old ones)
+  - Mods and admins can create/edit plans for other users to help them fill it out
+
+- `/viewplan [user]` - View your safety plan or another user's (Mods/Admins only)
+  - **user**: User to view plan for (optional, defaults to your own)
+  - Displays the saved safety plan in an embed for easy reference
+  - Users can only view their own plans
+  - Mods and admins can view any user's plan
+  - Shows when the plan was last updated
+
+**Safety Plan Features:**
+- **Multi-Section Coverage**: All 5 critical areas of a comprehensive safety plan
+- **Auto-DM Reference**: Automatically sends you a copy via DM immediately after creation
+- **Mod Assistance**: Moderators can help users fill out safety plans together
+- **Persistent Storage**: Plans are saved to PostgreSQL for always-available reference
+- **Easy Updates**: Simply re-run `/safetyplan` to update any section
+
 ### Moderation Commands
 
 #### Admin Commands (Admin Role: 1368995164470902967)
@@ -239,6 +267,8 @@ honey-bear-bot/
 │   ├── affirmationstats.js # Affirmation analytics
 │   ├── nocontact.js      # No-contact tracking system
 │   ├── check.js          # Wellness check-in command
+│   ├── safetyplan.js     # Personal safety plan creation
+│   ├── viewplan.js       # View safety plans
 │   ├── addrule.js        # Add moderation rules (admin)
 │   ├── warn.js           # Warn users for rule violations (mods)
 │   ├── clearwarning.js   # Clear user warnings (admin)
@@ -325,6 +355,18 @@ CREATE TABLE user_warnings (
     expires_at TIMESTAMP,
     FOREIGN KEY (rule_id) REFERENCES moderation_rules(id)
 );
+
+CREATE TABLE safety_plans (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) UNIQUE NOT NULL,
+    warning_signs TEXT,
+    self_soothing TEXT,
+    people_places TEXT,
+    emergency_supports TEXT,
+    reasons_to_stay TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 ```
 
 **user_data table** stores JSONB with fields like:
@@ -345,6 +387,12 @@ CREATE TABLE user_warnings (
 - Response tracking and resolution status
 - DM delivery failures for users with disabled DMs
 - Historical record of all wellness check interactions
+
+**safety_plans table** tracks:
+- User's personal safety plans with 5 sections
+- Warning signs, self-soothing actions, support networks, emergency resources, and reasons to stay grounded
+- Creation and update timestamps for reference
+- One plan per user (replaces older versions)
 
 ## Deployment
 

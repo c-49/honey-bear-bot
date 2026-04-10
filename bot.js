@@ -414,6 +414,86 @@ client.on('interactionCreate', async interaction => {
         return;
     }
 
+    // Handle modal submissions
+    if (interaction.isModalSubmit()) {
+        const customId = interaction.customId;
+
+        try {
+            if (customId.startsWith('safetyplan_')) {
+                const targetUserId = customId.replace('safetyplan_', '');
+                const warningSigns = interaction.fields.getTextInputValue('warning_signs');
+                const selfSoothing = interaction.fields.getTextInputValue('self_soothing');
+                const peoplePlaces = interaction.fields.getTextInputValue('people_places');
+                const emergencySupports = interaction.fields.getTextInputValue('emergency_supports');
+                const reasonsToStay = interaction.fields.getTextInputValue('reasons_to_stay');
+
+                // Save to database
+                const planData = {
+                    warningSigns,
+                    selfSoothing,
+                    peoplePlaces,
+                    emergencySupports,
+                    reasonsToStay
+                };
+
+                await userDataManager.saveSafetyPlan(targetUserId, planData);
+
+                // Create embedded message
+                const { EmbedBuilder } = require('discord.js');
+                const safetyPlanEmbed = new EmbedBuilder()
+                    .setColor('#ff69b4')
+                    .setTitle('🧾 Your Personal Safety Plan')
+                    .setDescription('Keep this plan close during difficult moments. You are stronger than you think. 💙')
+                    .addFields(
+                        { name: '🧠 Warning Signs', value: warningSigns || '*Not filled in yet*', inline: false },
+                        { name: '💚 Self-Soothing Actions', value: selfSoothing || '*Not filled in yet*', inline: false },
+                        { name: '🤝 People or Places That Help', value: peoplePlaces || '*Not filled in yet*', inline: false },
+                        { name: '📞 Emergency Supports', value: emergencySupports || '*Not filled in yet*', inline: false },
+                        { name: '🌱 Reasons to Stay Grounded', value: reasonsToStay || '*Not filled in yet*', inline: false }
+                    )
+                    .setFooter({ text: 'This plan is for your safety and wellbeing. Take care of yourself. 💚' })
+                    .setTimestamp();
+
+                // Reply to user
+                await interaction.reply({
+                    content: '✅ Your safety plan has been saved!',
+                    ephemeral: true
+                });
+
+                // DM the user with their plan
+                try {
+                    const user = await interaction.client.users.fetch(targetUserId);
+                    await user.send({
+                        content: '💚 Here\'s your personal safety plan for reference:',
+                        embeds: [safetyPlanEmbed]
+                    });
+                } catch (dmError) {
+                    console.log(`Could not send DM to user ${targetUserId}:`, dmError.message);
+                    await interaction.followUp({
+                        content: '⚠️ Could not send DM to user (DMs may be disabled)',
+                        ephemeral: true
+                    }).catch(() => {});
+                }
+
+                console.log(`${interaction.user.tag} saved safety plan for user ${targetUserId}`);
+            }
+        } catch (error) {
+            console.error('Error handling modal submission:', error);
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({
+                    content: 'There was an error saving your safety plan!',
+                    ephemeral: true
+                }).catch(() => {});
+            } else {
+                await interaction.editReply({
+                    content: 'There was an error saving your safety plan!'
+                }).catch(() => {});
+            }
+        }
+
+        return;
+    }
+
     // Handle select menu interactions
     if (interaction.isStringSelectMenu()) {
         const customId = interaction.customId;
