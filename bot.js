@@ -586,6 +586,7 @@ client.on('guildMemberRemove', async member => {
 
 client.on('guildMemberUpdate', async (oldMember, newMember) => {
     const UNDERAGE_ROLE_ID = '1304923945757184152';
+    const SUSPICIOUS_ROLE_ID = '1495920408770248785';
     const NO_WELCOME_ROLE_ID = '1424557858153824327';
     const WELCOME_ROLE_ID = '1294101382701256774';
     const REQUIRED_ROLE_ID = '1424564701924298752';
@@ -609,6 +610,27 @@ client.on('guildMemberUpdate', async (oldMember, newMember) => {
             // Kick the member
             await newMember.kick('User is under 18 - adult server policy');
             console.log(`Kicked underage user: ${newMember.user.tag}`);
+            return;
+        }
+
+        // Check if the suspicious role was just added
+        const hadSuspiciousRole = oldMember.roles.cache.has(SUSPICIOUS_ROLE_ID);
+        const hasSuspiciousRole = newMember.roles.cache.has(SUSPICIOUS_ROLE_ID);
+
+        if (!hadSuspiciousRole && hasSuspiciousRole) {
+            // Role was just assigned, kick the user
+            try {
+                await newMember.send({
+                    content: `Hello ${newMember.user.username},\n\nYour account has been flagged as suspicious. For the safety and security of our community, we've had to remove you from the server.\n\nIf you believe this is a mistake, please contact server support.\n\nTake care! 💙`
+                });
+                console.log(`Sent DM to suspicious user: ${newMember.user.tag}`);
+            } catch (dmError) {
+                console.log(`Could not send DM to ${newMember.user.tag}:`, dmError.message);
+            }
+
+            // Kick the member
+            await newMember.kick('Account flagged as suspicious');
+            console.log(`Kicked suspicious user: ${newMember.user.tag}`);
             return;
         }
 
