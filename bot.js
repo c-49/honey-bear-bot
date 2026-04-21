@@ -111,10 +111,38 @@ client.on('messageCreate', async message => {
 
             try {
                 // Get mentioned user IDs (excluding the bot itself)
-                // message.mentions is a Discord.js Collection, convert to array first
-                const mentionedUserIds = Array.from(message.mentions.values())
-                    .filter(user => user.id !== client.user.id)
-                    .map(user => user.id);
+                // Handle different Discord.js Collection types
+                let mentionedUserIds = [];
+                try {
+                    if (message.mentions) {
+                        // Try different Collection methods
+                        if (typeof message.mentions.map === 'function') {
+                            // Direct map (some versions)
+                            mentionedUserIds = message.mentions
+                                .filter(user => user.id !== client.user.id)
+                                .map(user => user.id);
+                        } else if (typeof message.mentions.toJSON === 'function') {
+                            // toJSON method for Collections
+                            mentionedUserIds = message.mentions
+                                .toJSON()
+                                .filter(user => user.id !== client.user.id)
+                                .map(user => user.id);
+                        } else if (Array.isArray(message.mentions)) {
+                            // Already an array
+                            mentionedUserIds = message.mentions
+                                .filter(user => user.id !== client.user.id)
+                                .map(user => user.id);
+                        } else {
+                            // Fallback: try to iterate as object
+                            mentionedUserIds = Object.values(message.mentions || {})
+                                .filter(user => user && user.id && user.id !== client.user.id)
+                                .map(user => user.id);
+                        }
+                    }
+                } catch (mentionError) {
+                    console.warn('[AI] Could not parse mentions:', mentionError.message);
+                    mentionedUserIds = [];
+                }
 
                 console.log(`[AI] Processing message from ${message.author.username} (#${message.author.id}) with ${mentionedUserIds.length} mentions`);
 
