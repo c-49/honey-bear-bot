@@ -670,8 +670,8 @@ class UserDataManager {
     async getSummaryStats(userId) {
         try {
             const result = await this.pool.query(
-                `SELECT COUNT(*) as count, SUM(message_count) as total_messages 
-                 FROM conversation_summaries 
+                `SELECT COUNT(*) as count, SUM(message_count) as total_messages
+                 FROM conversation_summaries
                  WHERE user_id = $1`,
                 [userId]
             );
@@ -679,6 +679,29 @@ class UserDataManager {
         } catch (error) {
             console.error('Error getting summary stats:', error);
             return { count: 0, total_messages: 0 };
+        }
+    }
+
+    // Hidden reputation methods — internal only, never exposed to users
+    async getReputation(userId) {
+        try {
+            const userData = await this.getUserData(userId);
+            return typeof userData._reputation === 'number' ? userData._reputation : 0;
+        } catch (error) {
+            console.error('Error getting reputation:', error);
+            return 0;
+        }
+    }
+
+    async updateReputation(userId, delta) {
+        try {
+            const current = await this.getReputation(userId);
+            const updated = Math.max(-5, Math.min(5, parseFloat((current + delta).toFixed(2))));
+            await this.setUserProperty(userId, '_reputation', updated);
+            return updated;
+        } catch (error) {
+            console.error('Error updating reputation:', error);
+            return 0;
         }
     }
 }
