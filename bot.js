@@ -110,11 +110,17 @@ client.on('messageCreate', async message => {
             await message.channel.sendTyping();
 
             try {
-                // Get AI response with conversation context
+                // Get mentioned user IDs (excluding the bot itself)
+                const mentionedUserIds = message.mentions
+                    .filter(user => user.id !== client.user.id)
+                    .map(user => user.id);
+
+                // Get AI response with conversation context and mentioned users
                 const aiResponse = await aiManager.generateResponse(
                     message.content,
                     message.author.id,
-                    message.author.username
+                    message.author.username,
+                    mentionedUserIds
                 );
 
                 // Send response (break into chunks if needed due to Discord's 2000 char limit)

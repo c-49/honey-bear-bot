@@ -164,6 +164,24 @@ class UserDataManager {
                 ON conversation_summaries(user_id, created_at DESC)
             `);
 
+            // Create the user_profiles table to store username and AI observations
+            await this.pool.query(`
+                CREATE TABLE IF NOT EXISTS user_profiles (
+                    user_id VARCHAR(255) PRIMARY KEY,
+                    username VARCHAR(255),
+                    ai_observations TEXT DEFAULT '',
+                    first_interaction TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    last_interaction TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
+            // Create index for username lookups
+            await this.pool.query(`
+                CREATE INDEX IF NOT EXISTS idx_user_profiles_username
+                ON user_profiles(username)
+            `);
+
             console.log('Database initialized successfully');
         } catch (error) {
             console.error('Error initializing database:', error);
@@ -703,6 +721,218 @@ class UserDataManager {
             console.error('Error updating reputation:', error);
             return 0;
         }
+    }
+
+    // ============= USER PROFILE METHODS =============
+    // These ensure single user entries with consolidated data
+
+    /**
+     * Save or update user profile with username
+     * @param {string} userId - Discord user ID
+     * @param {string} username - Discord username
+     */
+    async saveUserProfile(userId, username) {
+        try {
+            await this.pool.query(
+                `INSERT INTO user_profiles (user_id, username, first_interaction, last_interaction)
+                 VALUES ($1, $2, NOW(), NOW())
+                 ON CONFLICT (user_id) DO UPDATE SET 
+                    username = $2,
+                    last_interaction = NOW()`,
+                [userId, username]
+            );
+            return true;
+        } catch (error) {
+            console.error('Error saving user profile:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Get user profile (username, AI observations)
+     * @param {string} userId - Discord user ID
+     * @returns {Promise<Object>} Profile object or null
+     */
+    async getUserProfile(userId) {
+        try {
+            const result = await this.pool.query(
+                `SELECT user_id, username, ai_observations, first_interaction, last_interaction, updated_at
+                 FROM user_profiles 
+                 WHERE user_id = $1`,
+                [userId]
+            );
+
+            if (result.rows.length === 0) {
+                return null;
+            }
+
+            return result.rows[0];
+        } catch (error) {
+            console.error('Error getting user profile:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Update or append AI observations about a user
+     * @param {string} userId - Discord user ID
+     * @param {string} observation - New observation/thought about the user
+     * @param {boolean} append - Whether to append (true) or replace (false)
+     */
+    async updateAIObservations(userId, observation, append = true) {
+        try {
+            let newObservations = observation;
+            
+            if (append) {
+                const profile = await this.getUserProfile(userId);
+                if (profile && profile.ai_observations) {
+                    // Append with timestamp if appending
+                    const timestamp = new Date().toISOString().split('T')[0];
+                    newObservations = profile.ai_observations + `\n[${timestamp}] ${observation}`;
+                }
+            }
+
+            await this.pool.query(
+                `INSERT INTO user_profiles (user_id, ai_observations, last_interaction)
+                 VALUES ($1, $2, NOW())
+                 ON CONFLICT (user_id) DO UPDATE SET 
+                    ai_observations = $2,
+                    updated_at = NOW()`,
+                [userId, newObservations]
+            );
+            
+            return true;
+        } catch (error) {
+            console.error('Error updating AI observations:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Get AI observations about a user (for passing context to AI)
+     * @param {string} userId - Discord user ID
+     * @returns {Promise<string>} AI observations or empty string
+     */
+    async getAIObservations(userId) {
+        try {
+            const profile = await this.getUserProfile(userId);
+            return profile && profile.ai_observations ? profile.ai_observations : '';
+        } catch (error) {
+            console.error('Error getting AI observations:', error);
+            return '';
+        }
+    }
+
+    /**
+     * Look up a user by username (for @mention parsing)
+     * @param {string} username - Username to search for
+     * @returns {Promise<Object>} User profile or null
+     */
+    async lookupUserByUsername(username) {
+        try {
+            // Discord usernames are case-insensitive
+            const result = await this.pool.query(
+                `SELECT user_id, username, ai_observations, first_interaction, last_interaction
+                 FROM user_profiles 
+                 WHERE LOWER(username) = LOWER($1)
+                 LIMIT 1`,
+                [username]
+            );
+
+            return result.rows.length > 0 ? result.rows[0] : null;
+        } catch (error) {
+            console.error('Error looking up user by username:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Find mentioned users in a message and retrieve their summaries
+     * Looks for patterns like @username or <@user_id>
+     * @param {string} message - Message content
+     * @param {Array} mentionedUserIds - Discord API mentioned user IDs
+     * @returns {Promise<Array>} Array of mentioned user info with summaries
+     */
+    async findMentionedUsers(message, mentionedUserIds = []) {
+        try {
+            const mentionedUsers = [];
+
+            // First, handle Discord's built-in mentions (IDs)
+            for (const userId of mentionedUserIds) {
+                const profile = await this.getUserProfile(userId);
+                const summaries = await this.getSummaries(userId, 2); // Get recent summaries
+                const observations = await this.getAIObservations(userId);
+                
+                if (profile) {
+                    mentionedUsers.push({
+                        userId,
+                        username: profile.username,
+                        observations,
+                        recentSummaries: summaries,
+                        firstInteraction: profile.first_interaction
+                    });
+                }
+            }
+
+            // Parse text for @username mentions (case-insensitive)
+            const atMentionRegex = /@([\w]+)/g;
+            let match;
+            const processedUsernames = new Set(); // Avoid duplicates
+
+            while ((match = atMentionRegex.exec(message)) !== null) {
+                const username = match[1];
+                
+                // Skip if already processed
+                if (processedUsernames.has(username.toLowerCase())) {
+                    continue;
+                }
+
+                const profile = await this.lookupUserByUsername(username);
+                if (profile) {
+                    processedUsernames.add(username.toLowerCase());
+                    
+                    const summaries = await this.getSummaries(profile.user_id, 2);
+                    const observations = profile.ai_observations;
+                    
+                    mentionedUsers.push({
+                        userId: profile.user_id,
+                        username: profile.username,
+                        observations,
+                        recentSummaries: summaries,
+                        firstInteraction: profile.first_interaction
+                    });
+                }
+            }
+
+            return mentionedUsers;
+        } catch (error) {
+            console.error('Error finding mentioned users:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get a summary card for a mentioned user (for AI context)
+     * @param {Object} mentionedUser - User object from findMentionedUsers
+     * @returns {string} Formatted summary for AI context
+     */
+    buildMentionedUserSummary(mentionedUser) {
+        if (!mentionedUser) return '';
+
+        let summary = `\n**@${mentionedUser.username}**:`;
+
+        if (mentionedUser.observations) {
+            summary += `\n - AI Notes: ${mentionedUser.observations.substring(0, 150)}...`;
+        }
+
+        if (mentionedUser.recentSummaries && mentionedUser.recentSummaries.length > 0) {
+            summary += '\n - Recent: ' + mentionedUser.recentSummaries
+                .map(s => s.summary)
+                .join('; ')
+                .substring(0, 100);
+        }
+
+        return summary;
     }
 }
 
