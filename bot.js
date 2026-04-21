@@ -110,9 +110,10 @@ client.on('messageCreate', async message => {
             await message.channel.sendTyping();
 
             try {
-                // Get AI response
+                // Get AI response with conversation context
                 const aiResponse = await aiManager.generateResponse(
                     message.content,
+                    message.author.id,
                     message.author.username
                 );
 

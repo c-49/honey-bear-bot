@@ -146,6 +146,24 @@ class UserDataManager {
                 ON safety_plans(user_id)
             `);
 
+            // Create the conversation_summaries table if it doesn't exist
+            await this.pool.query(`
+                CREATE TABLE IF NOT EXISTS conversation_summaries (
+                    id SERIAL PRIMARY KEY,
+                    user_id VARCHAR(255) NOT NULL,
+                    summary TEXT NOT NULL,
+                    key_topics TEXT,
+                    message_count INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
+            // Create index for faster lookups by user_id and timestamp
+            await this.pool.query(`
+                CREATE INDEX IF NOT EXISTS idx_conversation_summaries_user_created
+                ON conversation_summaries(user_id, created_at DESC)
+            `);
+
             console.log('Database initialized successfully');
         } catch (error) {
             console.error('Error initializing database:', error);
@@ -569,6 +587,98 @@ class UserDataManager {
         } catch (error) {
             console.error('Error getting safety plan:', error);
             return null;
+        }
+    }
+
+    // Conversation summary methods
+    async saveSummary(userId, summary, keyTopics = null, messageCount = 0) {
+        try {
+            await this.pool.query(
+                `INSERT INTO conversation_summaries (user_id, summary, key_topics, message_count)
+                 VALUES ($1, $2, $3, $4)`,
+                [userId, summary, keyTopics, messageCount]
+            );
+            
+            // Cleanup: keep only last 10 summaries per user
+            await this.cleanupOldSummaries(userId, 10);
+            return true;
+        } catch (error) {
+            console.error('Error saving summary:', error);
+            return false;
+        }
+    }
+
+    async getSummaries(userId, limit = 10) {
+        try {
+            const result = await this.pool.query(
+                `SELECT id, summary, key_topics, message_count, created_at 
+                 FROM conversation_summaries 
+                 WHERE user_id = $1 
+                 ORDER BY created_at DESC 
+                 LIMIT $2`,
+                [userId, limit]
+            );
+            return result.rows;
+        } catch (error) {
+            console.error('Error getting summaries:', error);
+            return [];
+        }
+    }
+
+    async getRecentSummary(userId) {
+        try {
+            const result = await this.pool.query(
+                `SELECT id, summary, key_topics, message_count, created_at 
+                 FROM conversation_summaries 
+                 WHERE user_id = $1 
+                 ORDER BY created_at DESC 
+                 LIMIT 1`,
+                [userId]
+            );
+            return result.rows[0] || null;
+        } catch (error) {
+            console.error('Error getting recent summary:', error);
+            return null;
+        }
+    }
+
+    async cleanupOldSummaries(userId, maxKeep = 10) {
+        try {
+            // Get all summaries for user, ordered by date
+            const allSummaries = await this.pool.query(
+                `SELECT id FROM conversation_summaries 
+                 WHERE user_id = $1 
+                 ORDER BY created_at DESC`,
+                [userId]
+            );
+
+            // If we have more than maxKeep, delete the oldest ones
+            if (allSummaries.rows.length > maxKeep) {
+                const toDelete = allSummaries.rows.slice(maxKeep).map(row => row.id);
+                const placeholders = toDelete.map((_, i) => `$${i + 1}`).join(',');
+                
+                await this.pool.query(
+                    `DELETE FROM conversation_summaries WHERE id IN (${placeholders})`,
+                    toDelete
+                );
+            }
+        } catch (error) {
+            console.error('Error cleaning up old summaries:', error);
+        }
+    }
+
+    async getSummaryStats(userId) {
+        try {
+            const result = await this.pool.query(
+                `SELECT COUNT(*) as count, SUM(message_count) as total_messages 
+                 FROM conversation_summaries 
+                 WHERE user_id = $1`,
+                [userId]
+            );
+            return result.rows[0];
+        } catch (error) {
+            console.error('Error getting summary stats:', error);
+            return { count: 0, total_messages: 0 };
         }
     }
 }
