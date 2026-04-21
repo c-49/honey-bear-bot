@@ -855,22 +855,34 @@ class UserDataManager {
      */
     async findMentionedUsers(message, mentionedUserIds = []) {
         try {
+            if (!message || typeof message !== 'string') {
+                console.warn('findMentionedUsers: Invalid message format');
+                return [];
+            }
+
             const mentionedUsers = [];
 
             // First, handle Discord's built-in mentions (IDs)
-            for (const userId of mentionedUserIds) {
-                const profile = await this.getUserProfile(userId);
-                const summaries = await this.getSummaries(userId, 2); // Get recent summaries
-                const observations = await this.getAIObservations(userId);
-                
-                if (profile) {
-                    mentionedUsers.push({
-                        userId,
-                        username: profile.username,
-                        observations,
-                        recentSummaries: summaries,
-                        firstInteraction: profile.first_interaction
-                    });
+            if (Array.isArray(mentionedUserIds)) {
+                for (const userId of mentionedUserIds) {
+                    try {
+                        const profile = await this.getUserProfile(userId);
+                        if (profile) {
+                            const summaries = await this.getSummaries(userId, 2); // Get recent summaries
+                            const observations = await this.getAIObservations(userId);
+                            
+                            mentionedUsers.push({
+                                userId,
+                                username: profile.username,
+                                observations,
+                                recentSummaries: summaries,
+                                firstInteraction: profile.first_interaction
+                            });
+                        }
+                    } catch (err) {
+                        console.error(`Error processing mentioned user ${userId}:`, err.message);
+                        // Continue with next user
+                    }
                 }
             }
 
@@ -880,33 +892,38 @@ class UserDataManager {
             const processedUsernames = new Set(); // Avoid duplicates
 
             while ((match = atMentionRegex.exec(message)) !== null) {
-                const username = match[1];
-                
-                // Skip if already processed
-                if (processedUsernames.has(username.toLowerCase())) {
-                    continue;
-                }
+                try {
+                    const username = match[1];
+                    
+                    // Skip if already processed
+                    if (processedUsernames.has(username.toLowerCase())) {
+                        continue;
+                    }
 
-                const profile = await this.lookupUserByUsername(username);
-                if (profile) {
-                    processedUsernames.add(username.toLowerCase());
-                    
-                    const summaries = await this.getSummaries(profile.user_id, 2);
-                    const observations = profile.ai_observations;
-                    
-                    mentionedUsers.push({
-                        userId: profile.user_id,
-                        username: profile.username,
-                        observations,
-                        recentSummaries: summaries,
-                        firstInteraction: profile.first_interaction
-                    });
+                    const profile = await this.lookupUserByUsername(username);
+                    if (profile) {
+                        processedUsernames.add(username.toLowerCase());
+                        
+                        const summaries = await this.getSummaries(profile.user_id, 2);
+                        const observations = profile.ai_observations;
+                        
+                        mentionedUsers.push({
+                            userId: profile.user_id,
+                            username: profile.username,
+                            observations,
+                            recentSummaries: summaries,
+                            firstInteraction: profile.first_interaction
+                        });
+                    }
+                } catch (err) {
+                    console.error(`Error processing @mention ${match[1]}:`, err.message);
+                    // Continue with next mention
                 }
             }
 
             return mentionedUsers;
         } catch (error) {
-            console.error('Error finding mentioned users:', error);
+            console.error('Error finding mentioned users:', error.message);
             return [];
         }
     }

@@ -111,9 +111,12 @@ client.on('messageCreate', async message => {
 
             try {
                 // Get mentioned user IDs (excluding the bot itself)
-                const mentionedUserIds = message.mentions
+                // message.mentions is a Discord.js Collection, convert to array first
+                const mentionedUserIds = Array.from(message.mentions.values())
                     .filter(user => user.id !== client.user.id)
                     .map(user => user.id);
+
+                console.log(`[AI] Processing message from ${message.author.username} (#${message.author.id}) with ${mentionedUserIds.length} mentions`);
 
                 // Get AI response with conversation context and mentioned users
                 const aiResponse = await aiManager.generateResponse(
@@ -122,6 +125,15 @@ client.on('messageCreate', async message => {
                     message.author.username,
                     mentionedUserIds
                 );
+
+                if (!aiResponse) {
+                    console.error('[AI] No response generated');
+                    await message.reply({
+                        content: '❌ I had trouble thinking of a response. Try again?',
+                        allowedMentions: { repliedUser: false }
+                    });
+                    return;
+                }
 
                 // Send response (break into chunks if needed due to Discord's 2000 char limit)
                 if (aiResponse.length <= 2000) {
@@ -155,11 +167,16 @@ client.on('messageCreate', async message => {
                     }
                 }
             } catch (aiError) {
-                console.error('AI Response Error:', aiError.message);
-                await message.reply({
-                    content: '❌ Sorry, I had trouble generating a response. Please try again later!',
-                    allowedMentions: { repliedUser: false }
-                });
+                console.error('[AI] Response Error:', aiError);
+                console.error('[AI] Error details:', aiError.message, aiError.stack);
+                try {
+                    await message.reply({
+                        content: '❌ Sorry, I had trouble generating a response. Please try again later!',
+                        allowedMentions: { repliedUser: false }
+                    });
+                } catch (replyError) {
+                    console.error('[AI] Could not send error reply:', replyError.message);
+                }
             }
         }
     } catch (error) {
