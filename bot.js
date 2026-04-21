@@ -720,7 +720,7 @@ client.on('guildMemberUpdate', async (oldMember, newMember) => {
             const welcomeChannel = newMember.guild.systemChannel;
             if (welcomeChannel) {
                 await welcomeChannel.send({
-                    content: `Welcome ${newMember}! Tell us about your story on <#1294734902998208564>. Make sure to check out the <#1294074223224033383>, and get some roles: <#1412922277942792233> & <#1412923346609377430>\n<@&1332093729691144263>`,
+                    content: `Welcome ${newMember}! Tell us about your story on <#1294734902998208564>. Make sure to check out the <#1495913299701796955>, and get some roles: <#1412922277942792233> & <#1412923346609377430>\n<@&1332093729691144263>`,
                     components: [row]
                 });
                 console.log(`Sent welcome message for ${newMember.user.tag}`);
