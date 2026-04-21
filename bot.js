@@ -4,6 +4,7 @@ const path = require('path');
 const MilestoneChecker = require('./utils/milestoneChecker');
 const WellnessCheckManager = require('./utils/wellnessCheckManager');
 const userDataManager = require('./utils/userDataManager');
+const aiManager = require('./utils/aiManager');
 const { convertToUwu } = require('./utils/uwuFilter');
 require('dotenv').config();
 
@@ -97,8 +98,65 @@ client.on('messageCreate', async message => {
                 }
             }
         }
+
+        // Check if bot is mentioned or if this is a reply to the bot
+        const isBotMentioned = message.mentions.has(client.user.id);
+        const isReplyToBot = message.reference && 
+            (await message.channel.messages.fetch(message.reference.messageId))
+                .author.id === client.user.id;
+
+        if (isBotMentioned || isReplyToBot) {
+            // Show typing indicator
+            await message.channel.sendTyping();
+
+            try {
+                // Get AI response
+                const aiResponse = await aiManager.generateResponse(
+                    message.content,
+                    message.author.username
+                );
+
+                // Send response (break into chunks if needed due to Discord's 2000 char limit)
+                if (aiResponse.length <= 2000) {
+                    await message.reply({
+                        content: aiResponse,
+                        allowedMentions: { repliedUser: false }
+                    });
+                } else {
+                    // Split long responses into multiple messages
+                    const chunks = [];
+                    let currentChunk = '';
+
+                    for (const line of aiResponse.split('\n')) {
+                        if ((currentChunk + line).length > 1900) {
+                            if (currentChunk) chunks.push(currentChunk);
+                            currentChunk = line;
+                        } else {
+                            currentChunk += (currentChunk ? '\n' : '') + line;
+                        }
+                    }
+                    if (currentChunk) chunks.push(currentChunk);
+
+                    // Send first chunk as reply, rest as regular messages
+                    await message.reply({
+                        content: chunks[0],
+                        allowedMentions: { repliedUser: false }
+                    });
+
+                    for (let i = 1; i < chunks.length; i++) {
+                        await message.channel.send(chunks[i]);
+                    }
+                }
+            } catch (aiError) {
+                console.error('AI Response Error:', aiError.message);
+                await message.reply({
+                    content: '❌ Sorry, I had trouble generating a response. Please try again later!',
+                    allowedMentions: { repliedUser: false }
+                });
+            }
+        }
     } catch (error) {
-        console.error('Error handling uwu locked message:', error);
+        console.error('Error handling message:', error);
     }
 });
 
