@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const MilestoneChecker = require('./utils/milestoneChecker');
 const WellnessCheckManager = require('./utils/wellnessCheckManager');
-const SpamDetectionManager = require('./utils/spamDetectionManager');
+// const SpamDetectionManager = require('./utils/spamDetectionManager');
 const userDataManager = require('./utils/userDataManager');
 const aiManager = require('./utils/aiManager');
 const { convertToUwu } = require('./utils/uwuFilter');
@@ -52,8 +52,8 @@ client.once('ready', () => {
     client.wellnessCheckManager = wellnessCheckManager;
 
     // Initialize spam detection manager
-    const spamDetectionManager = new SpamDetectionManager();
-    client.spamDetectionManager = spamDetectionManager;
+    // const spamDetectionManager = new SpamDetectionManager();
+    // client.spamDetectionManager = spamDetectionManager;
 });
 
 client.on('messageCreate', async message => {
@@ -62,12 +62,12 @@ client.on('messageCreate', async message => {
 
     try {
         // Check for spam activity
-        const spamCheck = await client.spamDetectionManager.checkForSpam(message);
-        if (spamCheck.isSpam) {
-            console.log(`[SpamDetection] Spam detected from ${message.author.tag}: ${spamCheck.messageCount} messages in ${spamCheck.channelCount} channels`);
-            await client.spamDetectionManager.executeSpamAction(message, spamCheck);
-            return; // Stop processing this message
-        }
+        // const spamCheck = await client.spamDetectionManager.checkForSpam(message);
+        // if (spamCheck.isSpam) {
+        //     console.log(`[SpamDetection] Spam detected from ${message.author.tag}: ${spamCheck.messageCount} messages in ${spamCheck.channelCount} channels`);
+        //     await client.spamDetectionManager.executeSpamAction(message, spamCheck);
+        //     return; // Stop processing this message
+        // }
 
         // Check if the user is uwu locked
         const isUwuLocked = await userDataManager.isUwuLocked(message.author.id);
