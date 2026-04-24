@@ -701,7 +701,7 @@ client.on('guildMemberAdd', async member => {
         if (rulesChannel) {
             await rulesChannel.send({
                 content: `Welcome ${member}! Please read the rules in this channel. If you don't read the rules, you won't be able to see the other channels. 📖`,
-                flags: 64 // MessageFlags.Ephemeral
+                ephemeral: true
             });
         }
     } catch (error) {
