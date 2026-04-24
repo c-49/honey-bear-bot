@@ -692,8 +692,21 @@ client.on('interactionCreate', async interaction => {
 });
 
 client.on('guildMemberAdd', async member => {
-    // Just log the new member, all logic happens in guildMemberUpdate
     console.log(`New member joined: ${member.user.tag}`);
+
+    // Send ephemeral welcome message in rules channel
+    const rulesChannelId = '1294074223224033383';
+    try {
+        const rulesChannel = await member.guild.channels.fetch(rulesChannelId);
+        if (rulesChannel) {
+            await rulesChannel.send({
+                content: `Welcome ${member}! Please read the rules in this channel. If you don't read the rules, you won't be able to see the other channels. 📖`,
+                flags: 64 // MessageFlags.Ephemeral
+            });
+        }
+    } catch (error) {
+        console.error('Error sending welcome message:', error);
+    }
 });
 
 client.on('guildMemberRemove', async member => {
