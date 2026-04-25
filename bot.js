@@ -3,9 +3,10 @@ const fs = require('fs');
 const path = require('path');
 const MilestoneChecker = require('./utils/milestoneChecker');
 const WellnessCheckManager = require('./utils/wellnessCheckManager');
-// const SpamDetectionManager = require('./utils/spamDetectionManager');
+const SpamDetectionManager = require('./utils/spamDetectionManager');
 const userDataManager = require('./utils/userDataManager');
 const aiManager = require('./utils/aiManager');
+const config = require('./config.json');
 const { convertToUwu } = require('./utils/uwuFilter');
 require('dotenv').config();
 
@@ -52,8 +53,13 @@ client.once('ready', () => {
     client.wellnessCheckManager = wellnessCheckManager;
 
     // Initialize spam detection manager
-    // const spamDetectionManager = new SpamDetectionManager();
-    // client.spamDetectionManager = spamDetectionManager;
+    if (config.spamDetection.enabled) {
+        const spamDetectionManager = new SpamDetectionManager();
+        client.spamDetectionManager = spamDetectionManager;
+        console.log('✅ Spam Detection Manager initialized and ENABLED');
+    } else {
+        console.log('⚠️  Spam Detection Manager disabled (check config.json to enable)');
+    }
 });
 
 client.on('messageCreate', async message => {
@@ -61,13 +67,15 @@ client.on('messageCreate', async message => {
     if (message.author.bot || !message.guild) return;
 
     try {
-        // Check for spam activity
-        // const spamCheck = await client.spamDetectionManager.checkForSpam(message);
-        // if (spamCheck.isSpam) {
-        //     console.log(`[SpamDetection] Spam detected from ${message.author.tag}: ${spamCheck.messageCount} messages in ${spamCheck.channelCount} channels`);
-        //     await client.spamDetectionManager.executeSpamAction(message, spamCheck);
-        //     return; // Stop processing this message
-        // }
+        // Check for spam activity (if enabled)
+        if (config.spamDetection.enabled && client.spamDetectionManager) {
+            const spamCheck = await client.spamDetectionManager.checkForSpam(message);
+            if (spamCheck.isSpam) {
+                console.log(`[SpamDetection] Spam detected from ${message.author.tag}: ${spamCheck.messageCount} messages in ${spamCheck.channelCount} channels`);
+                await client.spamDetectionManager.executeSpamAction(message, spamCheck);
+                return; // Stop processing this message
+            }
+        }
 
         // Check if the user is uwu locked
         const isUwuLocked = await userDataManager.isUwuLocked(message.author.id);

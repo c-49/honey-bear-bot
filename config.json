@@ -7,5 +7,8 @@
     "width": 128,
     "height": 128,
     "enabled": true
+  },
+  "spamDetection": {
+    "enabled": false
   }
 }

@@ -58,6 +58,24 @@ class SpamDetectionManager {
     }
 
     /**
+     * Check if message is likely to contain spam content (links, potential scams)
+     */
+    isSpamContent(content) {
+        // Check for common spam indicators
+        const spamIndicators = [
+            /discord\.gg\/\w+/gi,           // Discord invite links
+            /bit\.ly\/\w+/gi,               // Shortened links
+            /tinyurl\.com\/\w+/gi,          // TinyURL links
+            /https?:\/\/([a-z0-9\-]+\.)+/gi, // Generic URLs
+            /free.*nitro/gi,                // Free nitro scams
+            /claim.*reward/gi,              // Reward scams
+            /verify.*account/gi,            // Account verification scams
+        ];
+
+        return spamIndicators.some(pattern => pattern.test(content));
+    }
+
+    /**
      * Check if message is spam and return spam detection result
      */
     async checkForSpam(message) {
@@ -88,20 +106,28 @@ class SpamDetectionManager {
             msg => now - msg.timestamp < this.config.timeWindow
         );
 
-        // Check spam patterns
+        // Check spam patterns - ONLY flag if:
+        // 1. Messages are across multiple channels (NOT just one channel)
+        // 2. AND messages are similar (indicating copy-paste spam)
+        // 3. OR messages contain known spam content across channels
         if (userHistory.messages.length >= this.config.messageThreshold) {
-            // Check if messages are sent to different channels
             const uniqueChannels = new Set(userHistory.messages.map(m => m.channelId));
 
+            // CRITICAL: Only consider it spam if across MULTIPLE channels
+            // Single-channel rapid typing is legitimate user behavior
             if (uniqueChannels.size >= 2) {
-                // Check if messages are similar
+                // Check if messages are similar (spam bots post identical messages)
                 const firstMessage = userHistory.messages[0].content;
                 let similarMessageCount = 0;
+                let spamContentCount = 0;
 
                 for (const msg of userHistory.messages) {
                     const similarity = this.calculateSimilarity(firstMessage, msg.content);
                     if (similarity >= this.config.similarityThreshold) {
                         similarMessageCount++;
+                    }
+                    if (this.isSpamContent(msg.content)) {
+                        spamContentCount++;
                     }
                 }
 
@@ -111,20 +137,21 @@ class SpamDetectionManager {
                         isSpam: true,
                         messageCount: userHistory.messages.length,
                         channelCount: uniqueChannels.size,
-                        similarity: similarMessageCount
+                        similarity: similarMessageCount,
+                        type: 'cross_channel_identical'
                     };
                 }
-            }
 
-            // Also check for very rapid messages (flooding a single channel)
-            if (userHistory.messages.length >= 5) {
-                // 5+ messages in 30 seconds might be spam
-                return {
-                    isSpam: true,
-                    messageCount: userHistory.messages.length,
-                    channelCount: uniqueChannels.size,
-                    type: 'rapid_fire'
-                };
+                // If multiple messages with spam content across channels, it's spam
+                if (spamContentCount >= 2) {
+                    return {
+                        isSpam: true,
+                        messageCount: userHistory.messages.length,
+                        channelCount: uniqueChannels.size,
+                        similarity: spamContentCount,
+                        type: 'cross_channel_spam_content'
+                    };
+                }
             }
         }
 
