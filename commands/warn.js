@@ -17,6 +17,12 @@ module.exports = {
                 .setDescription('The rule they broke')
                 .setRequired(true)
                 .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+            option
+                .setName('note')
+                .setDescription('Additional notes for this warning')
+                .setRequired(false)
         ),
 
     async autocomplete(interaction) {
@@ -69,6 +75,7 @@ module.exports = {
 
             const targetUser = interaction.options.getUser('user');
             const ruleName = interaction.options.getString('rule');
+            const note = interaction.options.getString('note') || null;
 
             // Defer reply since this might take a moment
             await interaction.deferReply();
@@ -126,7 +133,8 @@ module.exports = {
                 rule.id,
                 rule.rule_name,
                 rule.severity,
-                interaction.user.id
+                interaction.user.id,
+                note
             );
 
             // Get the next action
@@ -149,7 +157,7 @@ module.exports = {
                 );
             }
 
-            // Create warning embed
+            // Create warning embed (no mod identifier for privacy)
             const embed = new EmbedBuilder()
                 .setColor(
                     rule.severity === 'red' ? 0xff0000 :
@@ -164,10 +172,18 @@ module.exports = {
                     { name: 'Severity', value: rule.severity.toUpperCase(), inline: true },
                     { name: 'Warning Count', value: `${warning.warning_count}`, inline: true },
                     { name: 'Next Action', value: nextAction || 'None', inline: true },
-                    { name: 'Warned By', value: `<@${interaction.user.id}>`, inline: true },
                     { name: 'Expires', value: `<t:${Math.floor(new Date(warning.expires_at).getTime() / 1000)}:R>`, inline: true }
                 )
                 .setFooter({ text: `User ID: ${targetUser.id}` });
+            
+            // Add mod notes if present (visible to mods in channel)
+            if (note) {
+                embed.addFields({
+                    name: '📝 Mod Notes',
+                    value: note,
+                    inline: false
+                });
+            }
 
             // Add action result if an enforcement action was taken
             if (actionResult && !actionResult.success) {
@@ -205,6 +221,15 @@ module.exports = {
                         { name: 'Warning Count', value: `${warning.warning_count}/${moderationManager.escalationSequences[rule.severity].length}`, inline: true }
                     );
 
+                // Add mod notes to DM if present
+                if (note) {
+                    dmEmbed.addFields({
+                        name: '📝 Notes',
+                        value: note,
+                        inline: false
+                    });
+                }
+
                 // Add action result to DM if an enforcement action was taken
                 if (actionResult && actionResult.success && nextAction !== 'warning') {
                     dmEmbed.addFields({
@@ -217,6 +242,47 @@ module.exports = {
                 await targetUser.send({ embeds: [dmEmbed] });
             } catch (dmError) {
                 console.log(`Could not send DM to user ${targetUser.id}`);
+            }
+
+            // Post warning summary to mod channel
+            try {
+                const modChannelId = '1294668252454195220';
+                const modChannel = await interaction.client.channels.fetch(modChannelId);
+                
+                if (modChannel) {
+                    const modEmbed = new EmbedBuilder()
+                        .setColor(
+                            rule.severity === 'red' ? 0xff0000 :
+                            rule.severity === 'yellow' ? 0xffff00 :
+                            0x00ff00
+                        )
+                        .setTitle(`${emoji} Warning Issued`)
+                        .setDescription(`<@${targetUser.id}> has been warned`)
+                        .addFields(
+                            { name: 'User', value: `<@${targetUser.id}> (${targetUser.id})`, inline: true },
+                            { name: 'Warned By', value: `<@${interaction.user.id}>`, inline: true },
+                            { name: 'Rule', value: `**${rule.rule_name}**`, inline: false },
+                            { name: 'Description', value: rule.description, inline: false },
+                            { name: 'Severity', value: rule.severity.toUpperCase(), inline: true },
+                            { name: 'Warning Count', value: `${warning.warning_count}`, inline: true },
+                            { name: 'Next Action', value: nextAction || 'None', inline: true },
+                            { name: 'Expires', value: `<t:${Math.floor(new Date(warning.expires_at).getTime() / 1000)}:R>`, inline: true }
+                        )
+                        .setFooter({ text: `User ID: ${targetUser.id}` });
+                    
+                    // Add mod notes if present
+                    if (note) {
+                        modEmbed.addFields({
+                            name: '📝 Mod Notes',
+                            value: note,
+                            inline: false
+                        });
+                    }
+                    
+                    await modChannel.send({ embeds: [modEmbed] });
+                }
+            } catch (modChannelError) {
+                console.log(`Could not send warning to mod channel:`, modChannelError);
             }
         } catch (error) {
             console.error('Error in warn command:', error);

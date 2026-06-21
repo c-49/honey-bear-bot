@@ -12,7 +12,7 @@ class ModerationManager {
         this.escalationSequences = {
             green: ['warning', 'warning', 'mute', 'kick'],
             yellow: ['warning', 'warning', 'kick', 'ban'],
-            red: ['warning', 'warning', 'ban']
+            red: ['warning', 'ban']
         };
     }
 
@@ -130,7 +130,7 @@ class ModerationManager {
     /**
      * Add a warning to a user for a specific rule
      */
-    async warnUser(userId, ruleId, ruleName, severity, warnedBy) {
+    async warnUser(userId, ruleId, ruleName, severity, warnedBy, note = null) {
         try {
             // Check if user already has a warning for this rule that hasn't expired
             const existingWarning = await this.getActiveWarning(userId, ruleId);
@@ -138,11 +138,11 @@ class ModerationManager {
             // Calculate expiration based on severity
             let expiresAtDate;
             if (severity === 'green') {
-                expiresAtDate = DateTime.now().plus({ days: 7 }).toJSDate();
+                expiresAtDate = DateTime.now().plus({ days: 3 }).toJSDate();
             } else if (severity === 'yellow') {
-                expiresAtDate = DateTime.now().plus({ days: 30 }).toJSDate();
+                expiresAtDate = DateTime.now().plus({ days: 5 }).toJSDate();
             } else if (severity === 'red') {
-                expiresAtDate = DateTime.now().plus({ months: 6 }).toJSDate();
+                expiresAtDate = DateTime.now().plus({ days: 7 }).toJSDate();
             }
 
             if (existingWarning) {
@@ -150,19 +150,19 @@ class ModerationManager {
                 const newCount = existingWarning.warning_count + 1;
                 const result = await this.pool.query(
                     `UPDATE user_warnings
-                     SET warning_count = $1, expires_at = $2
-                     WHERE id = $3
+                     SET warning_count = $1, expires_at = $2, note = $3
+                     WHERE id = $4
                      RETURNING *`,
-                    [newCount, expiresAtDate, existingWarning.id]
+                    [newCount, expiresAtDate, note, existingWarning.id]
                 );
                 return result.rows[0];
             } else {
                 // Create new warning with severity-based expiration
                 const result = await this.pool.query(
-                    `INSERT INTO user_warnings (user_id, rule_id, rule_name, severity, warning_count, warned_by, expires_at)
-                     VALUES ($1, $2, $3, $4, 1, $5, $6)
+                    `INSERT INTO user_warnings (user_id, rule_id, rule_name, severity, warning_count, warned_by, note, expires_at)
+                     VALUES ($1, $2, $3, $4, 1, $5, $6, $7)
                      RETURNING *`,
-                    [userId, ruleId, ruleName, severity, warnedBy, expiresAtDate]
+                    [userId, ruleId, ruleName, severity, warnedBy, note, expiresAtDate]
                 );
                 return result.rows[0];
             }

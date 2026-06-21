@@ -107,6 +107,7 @@ class UserDataManager {
                     severity VARCHAR(10) NOT NULL,
                     warning_count INTEGER NOT NULL DEFAULT 1,
                     warned_by VARCHAR(255) NOT NULL,
+                    note TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     expires_at TIMESTAMP,
                     FOREIGN KEY (rule_id) REFERENCES moderation_rules(id)
