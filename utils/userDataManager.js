@@ -114,6 +114,42 @@ class UserDataManager {
                 )
             `);
 
+            // Ensure optional columns exist for backwards compatibility
+            await this.pool.query(`ALTER TABLE user_warnings ADD COLUMN IF NOT EXISTS note TEXT`);
+
+            // Defensive ALTERs for other tables to avoid schema-drift issues
+            await this.pool.query(`ALTER TABLE wellness_checks ADD COLUMN IF NOT EXISTS message_id VARCHAR(255)`);
+            await this.pool.query(`ALTER TABLE wellness_checks ADD COLUMN IF NOT EXISTS note TEXT`);
+            await this.pool.query(`ALTER TABLE wellness_checks ADD COLUMN IF NOT EXISTS auto_dm BOOLEAN`);
+            await this.pool.query(`ALTER TABLE wellness_checks ADD COLUMN IF NOT EXISTS reminder_time TIMESTAMP`);
+            await this.pool.query(`ALTER TABLE wellness_checks ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMP`);
+            await this.pool.query(`ALTER TABLE wellness_checks ADD COLUMN IF NOT EXISTS resolved_by VARCHAR(255)`);
+            await this.pool.query(`ALTER TABLE wellness_checks ADD COLUMN IF NOT EXISTS user_responded BOOLEAN`);
+            await this.pool.query(`ALTER TABLE wellness_checks ADD COLUMN IF NOT EXISTS response_text TEXT`);
+            await this.pool.query(`ALTER TABLE wellness_checks ADD COLUMN IF NOT EXISTS dms_disabled BOOLEAN`);
+            await this.pool.query(`ALTER TABLE wellness_checks ADD COLUMN IF NOT EXISTS status VARCHAR(50)`);
+
+            await this.pool.query(`ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS username VARCHAR(255)`);
+            await this.pool.query(`ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS ai_observations TEXT`);
+            await this.pool.query(`ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS first_interaction TIMESTAMP`);
+            await this.pool.query(`ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS last_interaction TIMESTAMP`);
+            await this.pool.query(`ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP`);
+
+            await this.pool.query(`ALTER TABLE conversation_summaries ADD COLUMN IF NOT EXISTS key_topics TEXT`);
+            await this.pool.query(`ALTER TABLE conversation_summaries ADD COLUMN IF NOT EXISTS message_count INTEGER`);
+            await this.pool.query(`ALTER TABLE conversation_summaries ADD COLUMN IF NOT EXISTS created_at TIMESTAMP`);
+
+            await this.pool.query(`ALTER TABLE safety_plans ADD COLUMN IF NOT EXISTS warning_signs TEXT`);
+            await this.pool.query(`ALTER TABLE safety_plans ADD COLUMN IF NOT EXISTS self_soothing TEXT`);
+            await this.pool.query(`ALTER TABLE safety_plans ADD COLUMN IF NOT EXISTS people_places TEXT`);
+            await this.pool.query(`ALTER TABLE safety_plans ADD COLUMN IF NOT EXISTS emergency_supports TEXT`);
+            await this.pool.query(`ALTER TABLE safety_plans ADD COLUMN IF NOT EXISTS reasons_to_stay TEXT`);
+            await this.pool.query(`ALTER TABLE safety_plans ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP`);
+
+            await this.pool.query(`ALTER TABLE mood_entries ADD COLUMN IF NOT EXISTS note TEXT`);
+            await this.pool.query(`ALTER TABLE mood_entries ADD COLUMN IF NOT EXISTS timestamp TIMESTAMP`);
+            await this.pool.query(`ALTER TABLE affirmations ADD COLUMN IF NOT EXISTS timestamp TIMESTAMP`);
+
             // Create index for faster lookups
             await this.pool.query(`
                 CREATE INDEX IF NOT EXISTS idx_user_warnings_user_severity
