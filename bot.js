@@ -842,31 +842,69 @@ client.on('messageDelete', async message => {
         const nickname = member?.nickname ?? null;
         const avatarURL = author?.displayAvatarURL({ dynamic: true, size: 256 }) ?? null;
 
-        // Build list of attachment sources to download
+        // Helper to download a URL into an AttachmentBuilder
+        async function tryDownload(url, name) {
+            try {
+                const res = await fetch(url);
+                if (!res.ok) return null;
+                const buffer = Buffer.from(await res.arrayBuffer());
+                return new AttachmentBuilder(buffer, { name });
+            } catch {
+                return null;
+            }
+        }
+
+        const files = [];
+
+        // File attachments (images, videos, etc.)
         let attachmentSources = [];
         if (dbRecord?.attachments) {
             try {
                 const parsed = JSON.parse(dbRecord.attachments);
                 attachmentSources = Array.isArray(parsed) ? parsed : [];
             } catch {
-                // Legacy newline-separated URLs
                 attachmentSources = dbRecord.attachments.split('\n').map(url => ({ url, name: 'attachment' }));
             }
         } else if (message.attachments?.size > 0) {
             attachmentSources = message.attachments.map(a => ({ url: a.url, name: a.name }));
         }
-
-        // Download and re-upload attachments so they survive deletion
-        const files = [];
         for (const att of attachmentSources) {
-            try {
-                const res = await fetch(att.url);
-                if (res.ok) {
-                    const buffer = Buffer.from(await res.arrayBuffer());
-                    files.push(new AttachmentBuilder(buffer, { name: att.name || 'attachment' }));
-                }
-            } catch (e) {
-                console.error('[MessageLog] Failed to fetch attachment:', e.message);
+            const file = await tryDownload(att.url, att.name || 'attachment');
+            if (file) files.push(file);
+        }
+
+        // GIF embeds (Discord GIF picker sends these as video embeds, not attachments)
+        let gifSources = [];
+        if (dbRecord?.gif_embeds) {
+            try { gifSources = JSON.parse(dbRecord.gif_embeds); } catch {}
+        } else {
+            gifSources = message.embeds
+                ?.filter(e => e.video?.url || e.thumbnail?.proxyURL)
+                .map(e => ({ videoURL: e.video?.proxyURL || e.video?.url, thumbnailURL: e.thumbnail?.proxyURL || e.thumbnail?.url })) ?? [];
+        }
+        for (const gif of gifSources) {
+            const url = gif.videoURL || gif.thumbnailURL;
+            if (url) {
+                const ext = url.split('?')[0].split('.').pop() || 'gif';
+                const file = await tryDownload(url, `gif.${ext}`);
+                if (file) files.push(file);
+            }
+        }
+
+        // Stickers
+        let stickerNames = [];
+        let stickerSources = [];
+        if (dbRecord?.stickers) {
+            try { stickerSources = JSON.parse(dbRecord.stickers); } catch {}
+        } else if (message.stickers?.size > 0) {
+            stickerSources = message.stickers.map(s => ({ id: s.id, name: s.name, url: s.url }));
+        }
+        for (const sticker of stickerSources) {
+            stickerNames.push(sticker.name);
+            if (sticker.url) {
+                const ext = sticker.url.split('.').pop().split('?')[0] || 'png';
+                const file = await tryDownload(sticker.url, `${sticker.name}.${ext}`);
+                if (file) files.push(file);
             }
         }
 
@@ -881,6 +919,7 @@ client.on('messageDelete', async message => {
             );
 
         if (content) embed.addFields({ name: 'Content', value: content.slice(0, 1024) });
+        if (stickerNames.length > 0) embed.addFields({ name: 'Sticker', value: stickerNames.join(', ') });
 
         embed.setFooter({ text: `Message ID: ${message.id}` }).setTimestamp();
 

@@ -239,6 +239,9 @@ class UserDataManager {
                 ON message_logs(created_at)
             `);
 
+            await this.pool.query(`ALTER TABLE message_logs ADD COLUMN IF NOT EXISTS stickers TEXT`);
+            await this.pool.query(`ALTER TABLE message_logs ADD COLUMN IF NOT EXISTS gif_embeds TEXT`);
+
             console.log('Database initialized successfully');
         } catch (error) {
             console.error('Error initializing database:', error);
@@ -997,11 +1000,21 @@ class UserDataManager {
             const attachments = message.attachments.size > 0
                 ? JSON.stringify(message.attachments.map(a => ({ url: a.url, name: a.name, contentType: a.contentType })))
                 : null;
+
+            const stickers = message.stickers.size > 0
+                ? JSON.stringify(message.stickers.map(s => ({ id: s.id, name: s.name, url: s.url })))
+                : null;
+
+            const gifEmbeds = message.embeds
+                .filter(e => e.video?.url || e.thumbnail?.proxyURL)
+                .map(e => ({ videoURL: e.video?.proxyURL || e.video?.url, thumbnailURL: e.thumbnail?.proxyURL || e.thumbnail?.url }));
+            const gifEmbedsJSON = gifEmbeds.length > 0 ? JSON.stringify(gifEmbeds) : null;
+
             await this.pool.query(
-                `INSERT INTO message_logs (message_id, author_id, channel_id, guild_id, content, attachments)
-                 VALUES ($1, $2, $3, $4, $5, $6)
+                `INSERT INTO message_logs (message_id, author_id, channel_id, guild_id, content, attachments, stickers, gif_embeds)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                  ON CONFLICT (message_id) DO NOTHING`,
-                [message.id, message.author.id, message.channelId, message.guildId, message.content || null, attachments]
+                [message.id, message.author.id, message.channelId, message.guildId, message.content || null, attachments, stickers, gifEmbedsJSON]
             );
         } catch (error) {
             console.error('Error saving message log:', error);
