@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, Collection, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, AttachmentBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, Collection, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const MilestoneChecker = require('./utils/milestoneChecker');
@@ -18,7 +18,8 @@ const client = new Client({
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.DirectMessages,
         GatewayIntentBits.MessageContent
-    ]
+    ],
+    partials: [Partials.Message, Partials.Channel]
 });
 
 client.commands = new Collection();
@@ -817,6 +818,7 @@ const MESSAGE_LOG_CHANNEL_ID = '1310707226494636072';
 
 client.on('messageDelete', async message => {
     if (!message.guild) return;
+    console.log(`[MessageLog] messageDelete fired — id: ${message.id}, author: ${message.author?.id ?? 'uncached'}, partial: ${message.partial}`);
 
     try {
         const logChannel = await client.channels.fetch(MESSAGE_LOG_CHANNEL_ID);
