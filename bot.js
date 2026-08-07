@@ -112,7 +112,8 @@ client.on('messageCreate', async message => {
                         content: uwuContent,
                         username: message.author.displayName,
                         avatarURL: message.author.avatarURL(),
-                        threadId: message.channelId === message.channel.id ? undefined : message.channel.id
+                        threadId: message.channelId === message.channel.id ? undefined : message.channel.id,
+                        ...(message.reference?.messageId && { reply: { messageReference: message.reference.messageId } })
                     });
                 } catch (webhookError) {
                     console.log(`Could not send webhook message for ${message.author.tag}: ${webhookError.message}`);
