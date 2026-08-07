@@ -995,7 +995,7 @@ class UserDataManager {
     async saveMessageLog(message) {
         try {
             const attachments = message.attachments.size > 0
-                ? message.attachments.map(a => a.proxyURL || a.url).join('\n')
+                ? JSON.stringify(message.attachments.map(a => ({ url: a.url, name: a.name, contentType: a.contentType })))
                 : null;
             await this.pool.query(
                 `INSERT INTO message_logs (message_id, author_id, channel_id, guild_id, content, attachments)

@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, Collection, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const MilestoneChecker = require('./utils/milestoneChecker');
@@ -832,12 +832,38 @@ client.on('messageDelete', async message => {
         let member = message.member ?? await message.guild.members.fetch(authorId).catch(() => null);
 
         const content = dbRecord?.content ?? message.content ?? null;
-        const attachments = dbRecord?.attachments
-            ?? (message.attachments?.size > 0 ? message.attachments.map(a => a.proxyURL || a.url).join('\n') : null);
 
         const username = author ? author.username : `Unknown (${authorId})`;
         const nickname = member?.nickname ?? null;
         const avatarURL = author?.displayAvatarURL({ dynamic: true, size: 256 }) ?? null;
+
+        // Build list of attachment sources to download
+        let attachmentSources = [];
+        if (dbRecord?.attachments) {
+            try {
+                const parsed = JSON.parse(dbRecord.attachments);
+                attachmentSources = Array.isArray(parsed) ? parsed : [];
+            } catch {
+                // Legacy newline-separated URLs
+                attachmentSources = dbRecord.attachments.split('\n').map(url => ({ url, name: 'attachment' }));
+            }
+        } else if (message.attachments?.size > 0) {
+            attachmentSources = message.attachments.map(a => ({ url: a.url, name: a.name }));
+        }
+
+        // Download and re-upload attachments so they survive deletion
+        const files = [];
+        for (const att of attachmentSources) {
+            try {
+                const res = await fetch(att.url);
+                if (res.ok) {
+                    const buffer = Buffer.from(await res.arrayBuffer());
+                    files.push(new AttachmentBuilder(buffer, { name: att.name || 'attachment' }));
+                }
+            } catch (e) {
+                console.error('[MessageLog] Failed to fetch attachment:', e.message);
+            }
+        }
 
         const embed = new EmbedBuilder()
             .setColor('#FF4444')
@@ -850,11 +876,10 @@ client.on('messageDelete', async message => {
             );
 
         if (content) embed.addFields({ name: 'Content', value: content.slice(0, 1024) });
-        if (attachments) embed.addFields({ name: 'Attachments', value: attachments.slice(0, 1024) });
 
         embed.setFooter({ text: `Message ID: ${message.id}` }).setTimestamp();
 
-        await logChannel.send({ embeds: [embed] });
+        await logChannel.send({ embeds: [embed], files });
     } catch (error) {
         console.error('Error logging deleted message:', error);
     }
