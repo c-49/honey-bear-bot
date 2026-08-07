@@ -102,14 +102,16 @@ function uwuify(text) {
 function convertToUwu(content) {
     if (!content || content.length === 0) return '';
 
-    // Split by newlines to preserve some formatting
-    const lines = content.split('\n');
-    const uwuLines = lines.map(line => {
-        if (line.trim().length === 0) return line;
-        return uwuify(line);
-    });
+    // Split on URLs (captured) so they aren't mangled by letter replacements
+    const parts = content.split(/(https?:\/\/[^\s]+)/g);
 
-    return uwuLines.join('\n');
+    return parts.map((part, i) => {
+        if (i % 2 === 1) return part; // URL token — preserve exactly
+        return part.split('\n').map(line => {
+            if (line.trim().length === 0) return line;
+            return uwuify(line);
+        }).join('\n');
+    }).join('');
 }
 
 module.exports = {
