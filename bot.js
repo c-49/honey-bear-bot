@@ -53,6 +53,9 @@ client.once('ready', async () => {
     client.wellnessCheckManager = wellnessCheckManager;
     await wellnessCheckManager.start();
 
+    // Prune message logs older than 14 days
+    await userDataManager.pruneOldMessageLogs(14);
+
     // Initialize spam detection manager
     if (config.spamDetection.enabled) {
         const spamDetectionManager = new SpamDetectionManager();
@@ -68,6 +71,9 @@ client.on('messageCreate', async message => {
     if (message.author.bot || !message.guild) return;
 
     try {
+        // Save to DB for delete logging (fire and forget)
+        userDataManager.saveMessageLog(message);
+
         // Check for spam activity (if enabled)
         if (config.spamDetection.enabled && client.spamDetectionManager) {
             const spamCheck = await client.spamDetectionManager.checkForSpam(message);
@@ -804,6 +810,53 @@ client.on('guildMemberUpdate', async (oldMember, newMember) => {
         }
     } catch (error) {
         console.error('Error handling member role update:', error);
+    }
+});
+
+const MESSAGE_LOG_CHANNEL_ID = '1310707226494636072';
+
+client.on('messageDelete', async message => {
+    if (!message.guild) return;
+
+    try {
+        const logChannel = await client.channels.fetch(MESSAGE_LOG_CHANNEL_ID);
+        if (!logChannel) return;
+
+        // Pull from DB (covers messages deleted after a bot restart)
+        const dbRecord = await userDataManager.getMessageLog(message.id);
+
+        const authorId = dbRecord?.author_id ?? message.author?.id;
+        if (!authorId) return; // Nothing to log
+
+        let author = message.author ?? await client.users.fetch(authorId).catch(() => null);
+        let member = message.member ?? await message.guild.members.fetch(authorId).catch(() => null);
+
+        const content = dbRecord?.content ?? message.content ?? null;
+        const attachments = dbRecord?.attachments
+            ?? (message.attachments?.size > 0 ? message.attachments.map(a => a.proxyURL || a.url).join('\n') : null);
+
+        const username = author ? author.username : `Unknown (${authorId})`;
+        const nickname = member?.nickname ?? null;
+        const avatarURL = author?.displayAvatarURL({ dynamic: true, size: 256 }) ?? null;
+
+        const embed = new EmbedBuilder()
+            .setColor('#FF4444')
+            .setTitle('Message Deleted')
+            .setThumbnail(avatarURL)
+            .addFields(
+                { name: 'User', value: `${username}${nickname ? ` (${nickname})` : ''}`, inline: true },
+                { name: 'User ID', value: authorId, inline: true },
+                { name: 'Channel', value: `<#${message.channelId}>`, inline: true }
+            );
+
+        if (content) embed.addFields({ name: 'Content', value: content.slice(0, 1024) });
+        if (attachments) embed.addFields({ name: 'Attachments', value: attachments.slice(0, 1024) });
+
+        embed.setFooter({ text: `Message ID: ${message.id}` }).setTimestamp();
+
+        await logChannel.send({ embeds: [embed] });
+    } catch (error) {
+        console.error('Error logging deleted message:', error);
     }
 });
 

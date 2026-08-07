@@ -221,6 +221,24 @@ class UserDataManager {
                 ON user_profiles(username)
             `);
 
+            // Create message_logs table for delete logging
+            await this.pool.query(`
+                CREATE TABLE IF NOT EXISTS message_logs (
+                    message_id VARCHAR(20) PRIMARY KEY,
+                    author_id VARCHAR(20) NOT NULL,
+                    channel_id VARCHAR(20) NOT NULL,
+                    guild_id VARCHAR(20) NOT NULL,
+                    content TEXT,
+                    attachments TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
+            await this.pool.query(`
+                CREATE INDEX IF NOT EXISTS idx_message_logs_created_at
+                ON message_logs(created_at)
+            `);
+
             console.log('Database initialized successfully');
         } catch (error) {
             console.error('Error initializing database:', error);
@@ -973,6 +991,48 @@ class UserDataManager {
      * @param {Object} mentionedUser - User object from findMentionedUsers
      * @returns {string} Formatted summary for AI context
      */
+    // Message log methods (for delete logging)
+    async saveMessageLog(message) {
+        try {
+            const attachments = message.attachments.size > 0
+                ? message.attachments.map(a => a.proxyURL || a.url).join('\n')
+                : null;
+            await this.pool.query(
+                `INSERT INTO message_logs (message_id, author_id, channel_id, guild_id, content, attachments)
+                 VALUES ($1, $2, $3, $4, $5, $6)
+                 ON CONFLICT (message_id) DO NOTHING`,
+                [message.id, message.author.id, message.channelId, message.guildId, message.content || null, attachments]
+            );
+        } catch (error) {
+            console.error('Error saving message log:', error);
+        }
+    }
+
+    async getMessageLog(messageId) {
+        try {
+            const result = await this.pool.query(
+                'SELECT * FROM message_logs WHERE message_id = $1',
+                [messageId]
+            );
+            return result.rows[0] || null;
+        } catch (error) {
+            console.error('Error getting message log:', error);
+            return null;
+        }
+    }
+
+    async pruneOldMessageLogs(days = 14) {
+        try {
+            const result = await this.pool.query(
+                `DELETE FROM message_logs WHERE created_at < NOW() - $1::INTERVAL`,
+                [`${days} days`]
+            );
+            console.log(`[MessageLog] Pruned ${result.rowCount} old message logs`);
+        } catch (error) {
+            console.error('Error pruning message logs:', error);
+        }
+    }
+
     buildMentionedUserSummary(mentionedUser) {
         if (!mentionedUser) return '';
 
