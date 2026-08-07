@@ -4,7 +4,9 @@ class UserDataManager {
     constructor() {
         this.pool = new Pool({
             connectionString: process.env.DATABASE_URL,
-            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+            idleTimeoutMillis: 5000,
+            connectionTimeoutMillis: 10000,
         });
         this.initDatabase();
     }
@@ -454,16 +456,17 @@ class UserDataManager {
         }
     }
 
-    async getPendingWellnessChecks() {
+    // Returns all checks that still need action (pending or reminder_sent but not done/resolved)
+    async getAllActiveWellnessChecks() {
         try {
             const result = await this.pool.query(
-                `SELECT * FROM wellness_checks 
-                 WHERE status = 'pending' AND reminder_time <= NOW()
+                `SELECT * FROM wellness_checks
+                 WHERE status IN ('pending', 'reminder_sent', 'dms_disabled')
                  ORDER BY reminder_time ASC`
             );
             return result.rows;
         } catch (error) {
-            console.error('Error getting pending wellness checks:', error);
+            console.error('Error getting all active wellness checks:', error);
             return [];
         }
     }
@@ -471,8 +474,8 @@ class UserDataManager {
     async getActiveWellnessChecks(userId) {
         try {
             const result = await this.pool.query(
-                `SELECT * FROM wellness_checks 
-                 WHERE user_id = $1 AND status = 'pending'
+                `SELECT * FROM wellness_checks
+                 WHERE user_id = $1 AND status IN ('pending', 'reminder_sent')
                  ORDER BY created_at DESC`,
                 [userId]
             );

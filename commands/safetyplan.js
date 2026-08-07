@@ -1,8 +1,6 @@
 const { SlashCommandBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
 const userDataManager = require('../utils/userDataManager');
-
-// Constants
-const MOD_ROLE_IDS = ['1368995164470902967', '1294078699687247882', '1359466436212559933'];
+const { MOD_ROLE_IDS } = require('../utils/constants');
 const ADMIN_ROLE_ID = '1368995164470902967';
 
 module.exports = {

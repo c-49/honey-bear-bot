@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const userDataManager = require('../utils/userDataManager');
+const { MOD_ROLE_IDS } = require('../utils/constants');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -21,7 +22,6 @@ module.exports = {
     async execute(interaction) {
         try {
             // Check if user is a moderator
-            const MOD_ROLE_IDS = ['1368995164470902967', '1294078699687247882', '1359466436212559933'];
             const isMod = MOD_ROLE_IDS.some(roleId => interaction.member.roles.cache.has(roleId));
 
             if (!isMod) {

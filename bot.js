@@ -8,6 +8,7 @@ const userDataManager = require('./utils/userDataManager');
 const aiManager = require('./utils/aiManager');
 const config = require('./config.json');
 const { convertToUwu } = require('./utils/uwuFilter');
+const { MOD_ROLE_IDS } = require('./utils/constants');
 require('dotenv').config();
 
 const client = new Client({
@@ -39,7 +40,7 @@ function loadCommands() {
     }
 }
 
-client.once('ready', () => {
+client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
     loadCommands();
 
@@ -49,8 +50,8 @@ client.once('ready', () => {
 
     // Start wellness check manager
     const wellnessCheckManager = new WellnessCheckManager(client);
-    wellnessCheckManager.start();
     client.wellnessCheckManager = wellnessCheckManager;
+    await wellnessCheckManager.start();
 
     // Initialize spam detection manager
     if (config.spamDetection.enabled) {
@@ -247,6 +248,9 @@ client.on('interactionCreate', async interaction => {
 
                     try {
                         // Update wellness check as user responded
+                        if (interaction.client.wellnessCheckManager) {
+                            interaction.client.wellnessCheckManager.cancelCheck(checkId);
+                        }
                         const resolved = await userDataManager.resolveWellnessCheck(checkId, interaction.user.id, 'user_clicked_button');
                         
                         // Acknowledge the button click in DM
@@ -337,8 +341,6 @@ client.on('interactionCreate', async interaction => {
                 case customId.startsWith('resolve_check_'): {
                     // Handle wellness check resolution
                     const checkId = customId.replace('resolve_check_', '');
-                    const MOD_ROLE_IDS = ['1368995164470902967', '1294078699687247882', '1359466436212559933'];
-                    
                     // Verify the user is a mod
                     const isMod = MOD_ROLE_IDS.some(roleId => interaction.member.roles.cache.has(roleId));
                     
@@ -350,6 +352,9 @@ client.on('interactionCreate', async interaction => {
                     }
 
                     // Resolve the check
+                    if (interaction.client.wellnessCheckManager) {
+                        interaction.client.wellnessCheckManager.cancelCheck(checkId);
+                    }
                     const resolved = await userDataManager.resolveWellnessCheck(checkId, interaction.user.id);
                     
                     if (resolved) {
@@ -480,7 +485,6 @@ client.on('interactionCreate', async interaction => {
                     const targetUserId = customId.replace('uwu_unlock_', '');
                     
                     // Check if the user clicking is the target or a mod
-                    const MOD_ROLE_IDS = ['1368995164470902967', '1294078699687247882', '1359466436212559933'];
                     const isTargetUser = interaction.user.id === targetUserId;
                     const isMod = MOD_ROLE_IDS.some(roleId => interaction.member.roles.cache.has(roleId));
 

@@ -1,70 +1,106 @@
 const userDataManager = require('./userDataManager');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-
-const MOD_CHAT_ID = '1453170052462542879';
-const DM_CHECK_INTERVAL = 60 * 60 * 1000; // 1 hour in milliseconds
+const { MOD_CHAT_ID } = require('./constants');
 const DM_CHECK_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
 class WellnessCheckManager {
     constructor(client) {
         this.client = client;
-        this.activeChecks = new Map(); // Track active DM checks
+        // Map of checkId → { reminderTimeout, dmTimeout }
+        this.activeChecks = new Map();
     }
 
-    // Start the wellness check manager
-    start() {
-        // Check for reminders every minute
-        this.reminderInterval = setInterval(() => this.checkReminders(), 60 * 1000);
-        
-        console.log('Wellness Check Manager started');
-    }
-
-    // Stop the wellness check manager
-    stop() {
-        if (this.reminderInterval) {
-            clearInterval(this.reminderInterval);
+    // Load existing active checks from DB and schedule their timeouts
+    async start() {
+        try {
+            const checks = await userDataManager.getAllActiveWellnessChecks();
+            for (const check of checks) {
+                this.scheduleCheck(check);
+            }
+            console.log(`Wellness Check Manager started (${checks.length} active check(s) scheduled)`);
+        } catch (error) {
+            console.error('Error loading wellness checks on startup:', error);
         }
-        this.activeChecks.forEach(timeout => clearTimeout(timeout));
+    }
+
+    stop() {
+        for (const timers of this.activeChecks.values()) {
+            if (timers.reminderTimeout) clearTimeout(timers.reminderTimeout);
+            if (timers.dmTimeout) clearTimeout(timers.dmTimeout);
+        }
         this.activeChecks.clear();
         console.log('Wellness Check Manager stopped');
     }
 
-    // Check for pending reminders
-    async checkReminders() {
+    // Schedule timeouts for a check. Call this when a check is created or on startup.
+    scheduleCheck(check) {
+        this.cancelCheck(check.check_id);
+
+        const timers = {};
+
+        if (check.status === 'pending' && check.reminder_time) {
+            const reminderMs = Math.max(0, new Date(check.reminder_time) - Date.now());
+            timers.reminderTimeout = setTimeout(() => this._fireReminder(check), reminderMs);
+        }
+
+        // Schedule 24h auto-DM timeout if applicable
+        if (check.auto_dm && !check.user_responded) {
+            const timeoutAt = new Date(check.created_at).getTime() + DM_CHECK_DURATION;
+            const dmMs = timeoutAt - Date.now();
+            if (dmMs > 0) {
+                timers.dmTimeout = setTimeout(() => this._fireDmTimeout(check), dmMs);
+            } else if (check.status === 'reminder_sent') {
+                // Overdue — fire now (async, non-blocking)
+                this._fireDmTimeout(check);
+            }
+        }
+
+        if (timers.reminderTimeout || timers.dmTimeout) {
+            this.activeChecks.set(check.check_id, timers);
+        }
+    }
+
+    cancelCheck(checkId) {
+        const timers = this.activeChecks.get(checkId);
+        if (timers) {
+            if (timers.reminderTimeout) clearTimeout(timers.reminderTimeout);
+            if (timers.dmTimeout) clearTimeout(timers.dmTimeout);
+            this.activeChecks.delete(checkId);
+        }
+    }
+
+    async _fireReminder(checkSnapshot) {
+        const checkId = checkSnapshot.check_id;
         try {
-            const pendingChecks = await userDataManager.getPendingWellnessChecks();
-            
-            for (const check of pendingChecks) {
-                // Skip checks that have already been sent a reminder
-                if (check.status === 'reminder_sent') continue;
-
-                // If autoDM is enabled, send DM instead of reminder
-                if (check.auto_dm) {
-                    await this.sendAutoCheckDM(check);
-                } else {
-                    // Send reminder to mod chat
-                    await this.sendReminderToModChat(check);
-                }
-
-                // Mark as reminder sent
-                await userDataManager.updateReminderSent(check.check_id);
+            const check = await userDataManager.getWellnessCheck(checkId);
+            if (!check || check.status !== 'pending') return;
+            if (check.auto_dm) {
+                await this.sendAutoCheckDM(check);
+            } else {
+                await this.sendReminderToModChat(check);
             }
-
-            // Check for auto-DM timeouts (24 hours without response)
-            const allPendingChecks = await userDataManager.getPendingWellnessChecks();
-            for (const check of allPendingChecks) {
-                if (check.auto_dm && check.status === 'reminder_sent' && !check.user_responded) {
-                    const createdTime = new Date(check.created_at).getTime();
-                    const elapsedTime = Date.now() - createdTime;
-                    
-                    // If 24 hours have passed and no response, timeout
-                    if (elapsedTime > DM_CHECK_DURATION) {
-                        await this.handleAutoCheckTimeout(check);
-                    }
-                }
-            }
+            await userDataManager.updateReminderSent(checkId);
         } catch (error) {
-            console.error('Error checking reminders:', error);
+            console.error(`Error firing reminder for check ${checkId}:`, error);
+        } finally {
+            const timers = this.activeChecks.get(checkId);
+            if (timers) {
+                delete timers.reminderTimeout;
+                if (!timers.dmTimeout) this.activeChecks.delete(checkId);
+            }
+        }
+    }
+
+    async _fireDmTimeout(check) {
+        // Re-fetch to make sure the user hasn't already responded
+        try {
+            const current = await userDataManager.getWellnessCheck(check.check_id);
+            if (!current || current.status === 'done' || current.user_responded) return;
+            await this.handleAutoCheckTimeout(current);
+        } catch (error) {
+            console.error(`Error firing DM timeout for check ${check.check_id}:`, error);
+        } finally {
+            this.activeChecks.delete(check.check_id);
         }
     }
 
@@ -72,7 +108,7 @@ class WellnessCheckManager {
     async sendAutoCheckDM(check) {
         try {
             const user = await this.client.users.fetch(check.user_id);
-            
+
             const dmEmbed = new EmbedBuilder()
                 .setColor('#FFB6C1')
                 .setTitle('🐻 Wellness Check-In')
@@ -91,7 +127,6 @@ class WellnessCheckManager {
             await user.send({ embeds: [dmEmbed], components: [row] });
         } catch (error) {
             console.error(`Error sending DM to user ${check.user_id}:`, error);
-            // Mark DMs as disabled
             await userDataManager.markDMsDisabled(check.check_id);
         }
     }
@@ -100,7 +135,7 @@ class WellnessCheckManager {
     async sendReminderToModChat(check) {
         try {
             const modChat = await this.client.channels.fetch(MOD_CHAT_ID);
-            
+
             const embed = new EmbedBuilder()
                 .setColor('#FFA500')
                 .setTitle('🔔 Wellness Check Reminder')
@@ -137,12 +172,10 @@ class WellnessCheckManager {
     // Handle timeout for auto-DM checks (24 hours passed without response)
     async handleAutoCheckTimeout(check) {
         try {
-            // Resolve the check as timed out
             await userDataManager.resolveWellnessCheck(check.check_id, 'system', 'timeout');
 
-            // Send timeout notification to mod chat
             const modChat = await this.client.channels.fetch(MOD_CHAT_ID);
-            
+
             const embed = new EmbedBuilder()
                 .setColor('#FF0000')
                 .setTitle('⏱️ Wellness Check Timed Out')
@@ -172,19 +205,17 @@ class WellnessCheckManager {
     // Handle user response to wellness check DM
     async handleUserResponse(userId, messageContent) {
         try {
-            // Find the active check for this user
             const activeChecks = await userDataManager.getActiveWellnessChecks(userId);
-            
+
             if (activeChecks.length === 0) return;
 
-            const check = activeChecks[0]; // Get the most recent check
+            const check = activeChecks[0];
 
-            // Update the check with response
+            // Cancel any pending timeouts for this check
+            this.cancelCheck(check.check_id);
+
             await userDataManager.updateWellnessCheckResponse(check.check_id, true, messageContent);
-
-            // Notify mod chat that user responded
             await this.notifyModChatOfResponse(check, messageContent);
-
         } catch (error) {
             console.error('Error handling user response:', error);
         }
@@ -194,7 +225,7 @@ class WellnessCheckManager {
     async notifyModChatOfResponse(check, responseText) {
         try {
             const modChat = await this.client.channels.fetch(MOD_CHAT_ID);
-            
+
             const embed = new EmbedBuilder()
                 .setColor('#00FF00')
                 .setTitle('✅ Wellness Check - User Responded')

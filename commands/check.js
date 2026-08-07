@@ -1,12 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const userDataManager = require('../utils/userDataManager');
 const { v4: uuidv4 } = require('uuid');
-
-// Constants
-const MOD_ROLE_IDS = ['1368995164470902967', '1294078699687247882', '1359466436212559933'];
-const MOD_CHAT_ID = '1453170052462542879';
-const DM_CHECK_INTERVAL = 1; // Check every 1 hour
-const DM_CHECK_DURATION = 24; // Check for 24 hours
+const { MOD_ROLE_IDS, MOD_CHAT_ID } = require('../utils/constants');
 
 // Helper function to calculate reminder time
 function calculateReminderTime(timeInput) {
@@ -195,7 +190,10 @@ module.exports = {
                 });
             }
 
-            // Note: Auto-DM will be sent at the reminder time by WellnessCheckManager
+            // Schedule the check's timers immediately (no polling needed)
+            if (interaction.client.wellnessCheckManager) {
+                interaction.client.wellnessCheckManager.scheduleCheck(wellnessCheck);
+            }
 
             // Notify mod chat
             await notifyModChat(interaction.client, wellnessCheck, interaction.user, autoDM);
