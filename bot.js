@@ -23,6 +23,7 @@ const client = new Client({
 });
 
 client.commands = new Collection();
+const uwuDeletedMessages = new Set();
 
 function loadCommands() {
     const commandsPath = path.join(__dirname, 'commands');
@@ -124,6 +125,16 @@ client.on('messageCreate', async message => {
                     } catch (replyError) {
                         console.log(`Fallback reply also failed: ${replyError.message}`);
                     }
+                }
+
+                // Delete the original so only the UWU version remains
+                try {
+                    uwuDeletedMessages.add(message.id);
+                    await message.delete();
+                    setTimeout(() => uwuDeletedMessages.delete(message.id), 10000);
+                } catch (deleteError) {
+                    uwuDeletedMessages.delete(message.id);
+                    console.log(`Could not delete original UWU message: ${deleteError.message}`);
                 }
             }
         }
@@ -818,6 +829,7 @@ const MESSAGE_LOG_CHANNEL_ID = '1310707226494636072';
 
 client.on('messageDelete', async message => {
     if (!message.guild) return;
+    if (uwuDeletedMessages.has(message.id)) return;
     console.log(`[MessageLog] messageDelete fired — id: ${message.id}, author: ${message.author?.id ?? 'uncached'}, partial: ${message.partial}`);
 
     try {
