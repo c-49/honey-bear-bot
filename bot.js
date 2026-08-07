@@ -822,12 +822,15 @@ client.on('messageDelete', async message => {
 
     try {
         const logChannel = await client.channels.fetch(MESSAGE_LOG_CHANNEL_ID);
+        console.log(`[MessageLog] logChannel: ${logChannel?.id ?? 'NOT FOUND'}`);
         if (!logChannel) return;
 
         // Pull from DB (covers messages deleted after a bot restart)
         const dbRecord = await userDataManager.getMessageLog(message.id);
+        console.log(`[MessageLog] dbRecord found: ${!!dbRecord}, content: ${dbRecord?.content?.slice(0,30) ?? 'none'}, attachments: ${dbRecord?.attachments ?? 'none'}`);
 
         const authorId = dbRecord?.author_id ?? message.author?.id;
+        console.log(`[MessageLog] authorId: ${authorId}`);
         if (!authorId) return; // Nothing to log
 
         let author = message.author ?? await client.users.fetch(authorId).catch(() => null);
@@ -881,7 +884,9 @@ client.on('messageDelete', async message => {
 
         embed.setFooter({ text: `Message ID: ${message.id}` }).setTimestamp();
 
+        console.log(`[MessageLog] Sending to channel — files: ${files.length}, hasContent: ${!!content}`);
         await logChannel.send({ embeds: [embed], files });
+        console.log(`[MessageLog] Send successful`);
     } catch (error) {
         console.error('Error logging deleted message:', error);
     }
