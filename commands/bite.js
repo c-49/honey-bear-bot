@@ -1,6 +1,5 @@
-const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
-const { getRandomGif } = require('../utils/gifUtils');
-const userDataManager = require('../utils/userDataManager');
+const { SlashCommandBuilder } = require('discord.js');
+const { sendGifReply } = require('../utils/gifReply');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -14,51 +13,20 @@ module.exports = {
         ),
 
     async execute(interaction) {
-        // Defer immediately to give time for resizing/IO
-        await interaction.deferReply();
-
         const targetUser = interaction.options.getUser('user');
+        const isSelfTarget = targetUser.id === interaction.user.id;
+        const content = isSelfTarget
+            ? `${interaction.user} bit themselves! 🐱`
+            : `${interaction.user} bit ${targetUser}! 🐱`;
 
-        const gifPath = getRandomGif('./gifs/bite');
-
-        if (!gifPath) {
-            return interaction.editReply({
-                content: 'No bite GIFs found! Please add some GIFs to the gifs/bite folder.'
-            });
-        }
-
-        try {
-            const attachment = new AttachmentBuilder(gifPath);
-            const isSelfTarget = targetUser.id === interaction.user.id;
-            const content = isSelfTarget
-                ? `${interaction.user} bit themselves! 🐱`
-                : `${interaction.user} bit ${targetUser}! 🐱`;
-
-            await interaction.editReply({
-                content: content,
-                files: [attachment]
-            });
-
-            // Track stats in the background (non-blocking)
-            userDataManager.incrementGifStat(interaction.user.id, 'bitesGiven').catch(err => 
-                console.error('Error tracking bites given:', err)
-            );
-            if (!isSelfTarget) {
-                userDataManager.incrementGifStat(targetUser.id, 'bitesReceived').catch(err => 
-                    console.error('Error tracking bites received:', err)
-                );
-            }
-        } catch (error) {
-            console.error('Error sending bite GIF:', error);
-            const isSelfTarget = targetUser.id === interaction.user.id;
-            const content = isSelfTarget
-                ? `${interaction.user} bit themselves! 🐱 (GIF failed to load)`
-                : `${interaction.user} bit ${targetUser}! 🐱 (GIF failed to load)`;
-            try {
-                await interaction.editReply({ content });
-            } catch (e) {
-                await interaction.followUp({ content, ephemeral: true }).catch(() => {});
-            }
-        }
+        await sendGifReply(interaction, {
+            category: 'bite',
+            content,
+            statKeys: {
+                giver: 'bitesGiven',
+                receiver: 'bitesReceived',
+                receiverId: isSelfTarget ? null : targetUser.id,
+            },
+        });
     },
 };

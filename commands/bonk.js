@@ -1,6 +1,5 @@
-const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
-const { getRandomGif } = require('../utils/gifUtils');
-const userDataManager = require('../utils/userDataManager');
+const { SlashCommandBuilder } = require('discord.js');
+const { sendGifReply } = require('../utils/gifReply');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -14,51 +13,20 @@ module.exports = {
         ),
 
     async execute(interaction) {
-        // Defer immediately to give time for resizing/IO
-        await interaction.deferReply();
-
         const targetUser = interaction.options.getUser('user');
+        const isSelfTarget = targetUser.id === interaction.user.id;
+        const content = isSelfTarget
+            ? `${interaction.user} bonked themselves! 💥`
+            : `${interaction.user} bonked ${targetUser}! 💥`;
 
-        const gifPath = getRandomGif('./gifs/bonk');
-
-        if (!gifPath) {
-            return interaction.editReply({
-                content: 'No bonk GIFs found! Please add some GIFs to the gifs folder.'
-            });
-        }
-
-        try {
-            const attachment = new AttachmentBuilder(gifPath);
-            const isSelfTarget = targetUser.id === interaction.user.id;
-            const content = isSelfTarget
-                ? `${interaction.user} bonked themselves! 💥`
-                : `${interaction.user} bonked ${targetUser}! 💥`;
-
-            await interaction.editReply({
-                content: content,
-                files: [attachment]
-            });
-
-            // Track stats in the background (non-blocking)
-            userDataManager.incrementGifStat(interaction.user.id, 'bonksGiven').catch(err => 
-                console.error('Error tracking bonks given:', err)
-            );
-            if (!isSelfTarget) {
-                userDataManager.incrementGifStat(targetUser.id, 'bonksReceived').catch(err => 
-                    console.error('Error tracking bonks received:', err)
-                );
-            }
-        } catch (error) {
-            console.error('Error sending bonk GIF:', error);
-            const isSelfTarget = targetUser.id === interaction.user.id;
-            const content = isSelfTarget
-                ? `${interaction.user} bonked themselves! 💥 (GIF failed to load)`
-                : `${interaction.user} bonked ${targetUser}! 💥 (GIF failed to load)`;
-            try {
-                await interaction.editReply({ content });
-            } catch (e) {
-                await interaction.followUp({ content, ephemeral: true }).catch(() => {});
-            }
-        }
+        await sendGifReply(interaction, {
+            category: 'bonk',
+            content,
+            statKeys: {
+                giver: 'bonksGiven',
+                receiver: 'bonksReceived',
+                receiverId: isSelfTarget ? null : targetUser.id,
+            },
+        });
     },
 };

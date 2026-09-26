@@ -9,6 +9,8 @@ const aiManager = require('./utils/aiManager');
 const config = require('./config.json');
 const { convertToUwu } = require('./utils/uwuFilter');
 const { MOD_ROLE_IDS } = require('./utils/constants');
+const gifClient = require('./utils/gifClient');
+const { sendGifReply } = require('./utils/gifReply');
 require('dotenv').config();
 
 const client = new Client({
@@ -44,6 +46,7 @@ function loadCommands() {
 
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
+    gifClient.init();
     loadCommands();
 
     // Start automatic milestone checking
@@ -329,29 +332,12 @@ client.on('interactionCreate', async interaction => {
                 }
 
                 case customId === 'welcome_gif': {
-                    const { getRandomGif } = require('./utils/gifUtils');
-                    const { AttachmentBuilder } = require('discord.js');
-
-                    // Defer the reply immediately to prevent timeout
-                    await interaction.deferReply();
-
-                    const gifPath = getRandomGif('./gifs/welcome');
-
-                    if (!gifPath) {
-                        return interaction.editReply({
-                            content: 'No welcome GIFs found!'
-                        });
-                    }
-
                     // Get the new user mention from the original message
                     const originalMessage = interaction.message;
                     const newUserMention = originalMessage.content.match(/<@!?\d+>/)?.[0] || '';
+                    const content = `${interaction.user} welcomes you${newUserMention ? ` ${newUserMention}` : ''}! 🎉`;
 
-                    const attachment = new AttachmentBuilder(gifPath);
-                    await interaction.editReply({
-                        content: `${interaction.user} welcomes you${newUserMention ? ` ${newUserMention}` : ''}! 🎉`,
-                        files: [attachment]
-                    });
+                    await sendGifReply(interaction, { category: 'welcome', content, statKeys: null });
 
                     console.log(`${interaction.user.tag} sent a welcome GIF`);
                     break;
