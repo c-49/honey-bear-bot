@@ -5,8 +5,7 @@
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js",
-    "dev": "nodemon bot.js",
-    "build": "node scripts/preresize-gifs.js"
+    "dev": "nodemon bot.js"
   },
   "dependencies": {
     "discord.js": "^14.14.1",
@@ -14,7 +13,6 @@
     "luxon": "^3.7.2",
     "openai": "^4.28.0",
     "pg": "^8.11.3",
-    "sharp": "^0.34.5",
     "uuid": "^9.0.0"
   },
   "devDependencies": {

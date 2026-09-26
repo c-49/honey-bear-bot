@@ -1,6 +1,5 @@
-const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
-const { getRandomGif } = require('../utils/gifUtils');
-const userDataManager = require('../utils/userDataManager');
+const { SlashCommandBuilder } = require('discord.js');
+const { sendGifReply } = require('../utils/gifReply');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -14,51 +13,20 @@ module.exports = {
         ),
 
     async execute(interaction) {
-        // Defer immediately to give time for resizing/IO
-        await interaction.deferReply();
-
         const targetUser = interaction.options.getUser('user');
+        const isSelfTarget = targetUser.id === interaction.user.id;
+        const content = isSelfTarget
+            ? `${interaction.user} petted themselves! 🐾`
+            : `${interaction.user} petted ${targetUser}! 🐾`;
 
-        const gifPath = getRandomGif('./gifs/pet');
-
-        if (!gifPath) {
-            return interaction.editReply({
-                content: 'No pet GIFs found! Please add some GIFs to the gifs/pet folder.'
-            });
-        }
-
-        try {
-            const attachment = new AttachmentBuilder(gifPath);
-            const isSelfTarget = targetUser.id === interaction.user.id;
-            const content = isSelfTarget
-                ? `${interaction.user} petted themselves! 🐾`
-                : `${interaction.user} petted ${targetUser}! 🐾`;
-
-            await interaction.editReply({
-                content: content,
-                files: [attachment]
-            });
-
-            // Track stats in the background (non-blocking)
-            userDataManager.incrementGifStat(interaction.user.id, 'petsGiven').catch(err => 
-                console.error('Error tracking pets given:', err)
-            );
-            if (!isSelfTarget) {
-                userDataManager.incrementGifStat(targetUser.id, 'petsReceived').catch(err => 
-                    console.error('Error tracking pets received:', err)
-                );
-            }
-        } catch (error) {
-            console.error('Error sending pet GIF:', error);
-            const isSelfTarget = targetUser.id === interaction.user.id;
-            const content = isSelfTarget
-                ? `${interaction.user} petted themselves! 🐾 (GIF failed to load)`
-                : `${interaction.user} petted ${targetUser}! 🐾 (GIF failed to load)`;
-            try {
-                await interaction.editReply({ content });
-            } catch (e) {
-                await interaction.followUp({ content, ephemeral: true }).catch(() => {});
-            }
-        }
+        await sendGifReply(interaction, {
+            category: 'pet',
+            content,
+            statKeys: {
+                giver: 'petsGiven',
+                receiver: 'petsReceived',
+                receiverId: isSelfTarget ? null : targetUser.id,
+            },
+        });
     },
 };
